@@ -266,6 +266,90 @@ export interface Database {
           }
         ]
       }
+      integration_installs: {
+        Row: {
+          config: Json | null
+          id: string
+          inserted_at: string
+          integration_id: string
+          project_id: string
+        }
+        Insert: {
+          config?: Json | null
+          id?: string
+          inserted_at?: string
+          integration_id: string
+          project_id: string
+        }
+        Update: {
+          config?: Json | null
+          id?: string
+          inserted_at?: string
+          integration_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_installs_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_installs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_installs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v_file_section_search_infos"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "integration_installs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v_team_project_info"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "integration_installs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v_team_project_usage_info"
+            referencedColumns: ["project_id"]
+          }
+        ]
+      }
+      integrations: {
+        Row: {
+          data: Json | null
+          id: string
+          inserted_at: string
+          name: string | null
+          slug: string | null
+        }
+        Insert: {
+          data?: Json | null
+          id?: string
+          inserted_at?: string
+          name?: string | null
+          slug?: string | null
+        }
+        Update: {
+          data?: Json | null
+          id?: string
+          inserted_at?: string
+          name?: string | null
+          slug?: string | null
+        }
+        Relationships: []
+      }
       memberships: {
         Row: {
           id: string
@@ -1550,6 +1634,28 @@ export interface Database {
           total_completion_completion_tokens: number
         }[]
       }
+      get_files: {
+        Args: {
+          q_project_id: string
+          q_order_by_column: string
+          q_order_by_direction: string
+          q_limit: number
+          q_offset: number
+          q_source_ids: string[]
+        }
+        Returns: {
+          id: number
+          path: string
+          meta: Json
+          title: string
+          project_id: string
+          updated_at: string
+          source_id: string
+          checksum: string
+          token_count: number
+          internal_metadata: Json
+        }[]
+      }
       get_insights_query_histogram: {
         Args: {
           project_id: string
@@ -1692,9 +1798,9 @@ export interface Database {
           match_count: number
         }
         Returns: {
+          title: string
           path: string
-          source_type: string
-          source_data: Json
+          source: Json
           occurrences: number
         }[]
       }

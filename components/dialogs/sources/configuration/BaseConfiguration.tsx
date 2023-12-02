@@ -1,3 +1,4 @@
+import { Connection } from '@nangohq/node/dist/types';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Tabs from '@radix-ui/react-tabs';
 import { parseISO } from 'date-fns';
@@ -7,37 +8,54 @@ import { FC, JSXElementConstructor, ReactNode, useMemo, useState } from 'react';
 import useSWR from 'swr';
 
 import Button from '@/components/ui/Button';
-import { FormField, FormLabel } from '@/components/ui/Forms';
+import {
+  FormField,
+  FormHeading,
+  FormHeadingGroup,
+  FormLabel,
+  FormSubHeading,
+} from '@/components/ui/Forms';
 import { CTABar } from '@/components/ui/SettingsCard';
 import { Tag } from '@/components/ui/Tag';
 import { formatShortDateTimeInTimeZone } from '@/lib/date';
 import useProject from '@/lib/hooks/use-project';
+import useSource from '@/lib/hooks/use-source';
 import useSources from '@/lib/hooks/use-sources';
+import useUser from '@/lib/hooks/use-user';
 import {
   getIntegrationEnvironment,
   getIntegrationEnvironmentName,
   getIntegrationId,
   getIntegrationName,
+  getSyncData,
 } from '@/lib/integrations/nango';
-import { fetcher, removeTrailingSlash } from '@/lib/utils';
+import { fetcher, formatUrl, removeTrailingSlash } from '@/lib/utils';
 import { removeSchema } from '@/lib/utils.nodeps';
 import {
   DbSource,
-  DbSyncQueue,
+  DbSyncQueueOverview,
   NangoSourceDataType,
   SourceConfigurationView,
 } from '@/types/types';
 
 import { SyncQueueLogs } from './SyncQueueLogs';
-import { getTagForSyncQueue } from './utils';
+import { SyncQueueTag } from './utils';
 import SourceDialog from '../SourceDialog';
 
 const DeleteSourceDialog = dynamic(
   () => import('@/components/dialogs/sources/DeleteSource'),
 );
 
+type CustomMetadata = {
+  label: string;
+  value: string;
+  accessory?: string | ReactNode;
+  href?: string;
+};
+
 type BaseConfigurationDialogProps = {
   source?: DbSource;
+  customMetadata?: CustomMetadata[];
   defaultView?: SourceConfigurationView;
   Icon?: JSXElementConstructor<any>;
   open?: boolean;
@@ -45,38 +63,71 @@ type BaseConfigurationDialogProps = {
   children?: ReactNode;
 };
 
+const StopSyncButton = ({ source }: { source: DbSource }) => {
+  const [isStopping, setStopping] = useState(false);
+  const { stopSync } = useSource(source);
+
+  return (
+    <Button
+      className="flex-none"
+      variant="plain"
+      buttonSize="sm"
+      loading={isStopping}
+      onClick={async () => {
+        if (!source) {
+          return;
+        }
+        setStopping(true);
+        await stopSync();
+        setStopping(false);
+      }}
+    >
+      Stop syncing
+    </Button>
+  );
+};
+
+const RetrainOnlyButton = ({ source }: { source: DbSource }) => {
+  const [isStarting, setStarting] = useState(false);
+  // const { currentStatus, retrainOnly } = useSource(source);
+  const { retrainOnly } = useSource(source);
+
+  return (
+    <Button
+      className="flex-none"
+      variant="plain"
+      buttonSize="sm"
+      // disabled={currentStatus === 'running'}
+      loading={isStarting}
+      onClick={async () => {
+        if (!source) {
+          return;
+        }
+        setStarting(true);
+        await retrainOnly();
+        setStarting(false);
+      }}
+    >
+      Retrain only
+    </Button>
+  );
+};
+
 export const BaseConfigurationDialog: FC<BaseConfigurationDialogProps> = ({
   source,
   defaultView,
+  customMetadata,
   Icon,
   open,
   onOpenChange,
   children,
 }) => {
   const { project } = useProject();
-  const { latestSyncQueues, syncSources } = useSources();
+  const { isSuperAdmin } = useUser();
+  const { syncSources } = useSources();
+  const { currentStatus, connection, lastSyncQueue } = useSource(source);
   const [syncStarted, setSyncStarted] = useState(false);
   const [showDeleteSourceDialog, setShowDeleteSourceDialog] = useState(false);
-
-  const { data: allSyncQueuesForSource, error } = useSWR(
-    project?.id && source?.id
-      ? `/api/project/${project.id}/sources/syncs/${source?.id}`
-      : null,
-    fetcher<DbSyncQueue[]>,
-  );
-
-  const currentStatus = useMemo(() => {
-    return latestSyncQueues?.find((q) => q.source_id === source?.id)?.status;
-  }, [latestSyncQueues, source?.id]);
-
-  const loadingSyncQueues = !allSyncQueuesForSource && !error;
-
-  const lastCompletedSyncDate = useMemo(() => {
-    return allSyncQueuesForSource?.find((q) => q.status === 'complete')
-      ?.ended_at;
-  }, [allSyncQueuesForSource]);
-
-  const lastSyncQueue = allSyncQueuesForSource?.[0];
 
   const title = useMemo(() => {
     if (source?.type !== 'nango') {
@@ -88,15 +139,6 @@ export const BaseConfigurationDialog: FC<BaseConfigurationDialogProps> = ({
 
   const integrationId = source && getIntegrationId(source);
 
-  // Proper to integrations like Salesforce
-  const integrationEnvironment =
-    integrationId && getIntegrationEnvironment(integrationId);
-  const instanceUrl = (source?.data as NangoSourceDataType)?.connectionConfig
-    ?.instance_url;
-
-  // Proper to integrations like unauthed websites
-  const baseUrl = (source?.data as NangoSourceDataType)?.syncMetadata?.baseUrl;
-
   return (
     <SourceDialog
       open={open}
@@ -104,7 +146,7 @@ export const BaseConfigurationDialog: FC<BaseConfigurationDialogProps> = ({
       title={title}
       Accessory={
         currentStatus ? (
-          getTagForSyncQueue(currentStatus)
+          <SyncQueueTag status={currentStatus} />
         ) : (
           <Tag color="orange">Not synced</Tag>
         )
@@ -139,82 +181,77 @@ export const BaseConfigurationDialog: FC<BaseConfigurationDialogProps> = ({
                   </div>
                 </div>
               </FormField>
-              {integrationEnvironment && (
-                <FormField>
-                  <FormLabel>Environment</FormLabel>
-                  <div className="truncate text-sm text-neutral-300">
-                    {getIntegrationEnvironmentName(integrationEnvironment)}
-                  </div>
-                </FormField>
-              )}
-              {instanceUrl && (
-                <FormField>
-                  <FormLabel>Instance URL</FormLabel>
-                  <Link
-                    href={instanceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="subtle-underline self-start truncate text-sm text-neutral-300"
-                  >
-                    {removeTrailingSlash(instanceUrl)}
-                  </Link>
-                </FormField>
-              )}
-              {baseUrl && (
-                <FormField>
-                  <FormLabel>Base URL</FormLabel>
-                  <Link
-                    href={baseUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="subtle-underline self-start truncate text-sm text-neutral-300"
-                  >
-                    {removeSchema(removeTrailingSlash(baseUrl))}
-                  </Link>
-                </FormField>
-              )}
+              {customMetadata &&
+                customMetadata.map((entry, i) => {
+                  return (
+                    <FormField key={`custom-metadata-${i}`}>
+                      <FormLabel>{entry.label}</FormLabel>
+                      <div className="flex flex-row items-center gap-2">
+                        {entry.href ? (
+                          <Link
+                            href={entry.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="subtle-underline self-start truncate text-sm text-neutral-300"
+                          >
+                            {entry.value}
+                          </Link>
+                        ) : (
+                          <div className="truncate text-sm text-neutral-300">
+                            {entry.value}
+                          </div>
+                        )}
+                        {entry.accessory}
+                      </div>
+                    </FormField>
+                  );
+                })}
             </div>
             {children}
-            <div className="mt-8 border-t border-neutral-900 pt-8" />
-            <Button
-              buttonSize="sm"
-              variant="plainDanger"
-              onClick={() => {
-                setShowDeleteSourceDialog(true);
-              }}
-            >
-              Delete source
-            </Button>
+            <div className="mt-8 flex flex-col items-start gap-2 border-t border-neutral-900 pt-8">
+              {isSuperAdmin && connection && source && (
+                <RetrainOnlyButton source={source} />
+              )}
+              <Button
+                buttonSize="sm"
+                variant="plainDanger"
+                onClick={() => {
+                  setShowDeleteSourceDialog(true);
+                }}
+              >
+                Delete source
+              </Button>
+            </div>
           </Tabs.Content>
           <Tabs.Content
             className="TabsContent flex-grow overflow-y-auto"
             value="logs"
           >
-            <div className="TabsContent flex-grow overflow-y-auto">
-              <SyncQueueLogs
-                loading={loadingSyncQueues}
-                syncQueues={allSyncQueuesForSource}
-              />
-            </div>
+            {project?.id && source?.id && (
+              <SyncQueueLogs projectId={project.id} source={source} />
+            )}
           </Tabs.Content>
         </Tabs.Root>
         <div className="flex-none">
           <CTABar>
             <div className="flex flex-grow flex-row items-center gap-2">
               <div className="flex-grow">
-                {lastCompletedSyncDate && (
+                {lastSyncQueue?.created_at && (
                   <p className="animate-fade-in text-xs text-neutral-500">
-                    Last sync completed on{' '}
+                    Last sync started on{' '}
                     {formatShortDateTimeInTimeZone(
-                      parseISO(lastCompletedSyncDate),
+                      parseISO(lastSyncQueue.created_at),
                     )}
                   </p>
                 )}
               </div>
+              {source && currentStatus === 'running' && (
+                <StopSyncButton source={source} />
+              )}
               <Button
                 className="flex-none"
                 loading={syncStarted}
-                disabled={lastSyncQueue?.status === 'running'}
+                disabled={currentStatus === 'running'}
                 variant="cta"
                 buttonSize="sm"
                 onClick={() => {
@@ -224,9 +261,7 @@ export const BaseConfigurationDialog: FC<BaseConfigurationDialogProps> = ({
                   syncSources([source], setSyncStarted);
                 }}
               >
-                {lastSyncQueue?.status === 'running'
-                  ? 'Initiating sync...'
-                  : 'Sync now'}
+                {currentStatus === 'running' ? 'Syncing...' : 'Sync now'}
               </Button>
             </div>
           </CTABar>

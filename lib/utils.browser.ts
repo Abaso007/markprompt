@@ -14,9 +14,10 @@ import {
 } from 'lodash-es';
 
 import { Json } from '@/types/supabase';
+import { MarkpromptConfig } from '@/types/types';
 
 import { DEFAULT_MARKPROMPT_CONFIG } from './constants';
-import { MarkpromptConfig, parse } from './schema';
+import { parse } from './schema';
 
 export const getMarkpromptConfigOrDefault = (
   markpromptConfig: Json | undefined,

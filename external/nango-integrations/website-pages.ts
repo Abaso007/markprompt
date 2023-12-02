@@ -1,4 +1,100 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import type { NangoSync, NangoFile } from './models';
+
+const PROVIDER_CONFIG_KEY = 'website-pages';
+
+//
+// START SHARED LOGGING CODE ==================================================
+//
+
+const getSyncQueueId = async (
+  nango: NangoSync,
+): Promise<string | undefined> => {
+  const env = await nango.getEnvironmentVariables();
+  const markpromptUrl = getEnv(env, 'MARKPROMPT_URL');
+  const markpromptAPIToken = getEnv(env, 'MARKPROMPT_API_TOKEN');
+
+  await nango.log(
+    'getSyncQueueId - markpromptUrl: ' +
+      markpromptUrl +
+      ' : ' +
+      markpromptAPIToken?.slice(0, 5),
+  );
+
+  if (!markpromptUrl || !markpromptAPIToken) {
+    return undefined;
+  }
+
+  const res = await nango.proxy({
+    method: 'GET',
+    baseUrlOverride: markpromptUrl,
+    endpoint: `/api/sync-queues/running?connectionId=${nango.connectionId!}`,
+    providerConfigKey: PROVIDER_CONFIG_KEY,
+    connectionId: nango.connectionId!,
+    headers: {
+      Authorization: `Bearer ${markpromptAPIToken}`,
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+  });
+
+  return res.data?.syncQueueId || undefined;
+};
+
+const pluralize = (value: number, singular: string, plural: string) => {
+  return `${value} ${value === 1 ? singular : plural}`;
+};
+
+type LogLevel = 'info' | 'debug' | 'error' | 'warn';
+
+const appendToLogFull = async (
+  nango: NangoSync,
+  syncQueueId: string | undefined,
+  level: LogLevel,
+  message: string,
+) => {
+  if (!syncQueueId) {
+    return;
+  }
+
+  const env = await nango.getEnvironmentVariables();
+  const markpromptUrl = getEnv(env, 'MARKPROMPT_URL');
+  const markpromptAPIToken = getEnv(env, 'MARKPROMPT_API_TOKEN');
+
+  if (!markpromptUrl || !markpromptAPIToken) {
+    return;
+  }
+
+  await nango.log('appendToLogFull: ' + syncQueueId + ' ' + markpromptUrl);
+
+  try {
+    await nango.proxy({
+      method: 'POST',
+      baseUrlOverride: markpromptUrl,
+      endpoint: `/api/sync-queues/${syncQueueId}/append-log`,
+      providerConfigKey: PROVIDER_CONFIG_KEY,
+      connectionId: nango.connectionId!,
+      data: { message, level },
+      headers: {
+        Authorization: `Bearer ${markpromptAPIToken}`,
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+    });
+  } catch (e) {
+    await nango.log(`Error posting log: ${e}`);
+  }
+};
+
+type EnvEntry = { name: string; value: string };
+
+const getEnv = (env: EnvEntry[] | null, name: string) => {
+  return env?.find((v) => v.name === name)?.value;
+};
+
+//
+// END SHARED LOGGING CODE ====================================================
+//
 
 interface Metadata {
   baseUrl: string;
@@ -9,7 +105,7 @@ interface Metadata {
 
 type NangoWebpageFile = Pick<
   NangoFile,
-  'id' | 'path' | 'content' | 'contentType' | 'error'
+  'id' | 'path' | 'content' | 'contentType' | 'lastModified' | 'error'
 >;
 
 type PageFetchResponse = {
@@ -38,8 +134,6 @@ const unique = (arr: string[]) => {
   return result;
 };
 
-const WEBSITE_PAGES_PROVIDER_CONFIG_KEY = 'website-pages';
-
 const fetchPageAndUrlsWithRetryWithThrows = async (
   nango: NangoSync,
   url: string,
@@ -50,27 +144,29 @@ const fetchPageAndUrlsWithRetryWithThrows = async (
   requestHeaders: { [key: string]: string } | undefined,
   includeRegexes: string[] | undefined,
   excludeRegexes: string[] | undefined,
+  maxRetries: number,
 ): Promise<PageFetchResponse> => {
   // Note that this endpoint returns FULL urls. That is, it has resolved
   // e.g. absolute and relative URLs to their fully specified paths with
   // base URL prepended.
 
-  await nango.log('Fetching ' + url);
+  await nango.log('Fetching ' + url);
 
   const res = await nango.proxy({
     method: 'POST',
     baseUrlOverride: pageFetcherServiceBaseUrl,
     endpoint: pageFetcherServicePath,
-    providerConfigKey: WEBSITE_PAGES_PROVIDER_CONFIG_KEY,
+    providerConfigKey: PROVIDER_CONFIG_KEY,
     connectionId: nango.connectionId!,
-    retries: 10,
+    retries: maxRetries,
     data: {
       url,
       crawlerRoot,
-      includePageUrls: true,
       requestHeaders,
       includeRegexes,
       excludeRegexes,
+      includePageUrls: true,
+      shouldReturn200: true,
     },
     headers: {
       Authorization: `Bearer ${pageFetcherServiceAPIToken}`,
@@ -79,12 +175,17 @@ const fetchPageAndUrlsWithRetryWithThrows = async (
     },
   });
 
+  if (typeof res.data?.error === 'string' && res.data.error.length > 0) {
+    throw new Error(res.data.error);
+  }
+
   return {
     file: {
       id: url,
       path: url,
       content: res.data.content,
       contentType: 'html',
+      lastModified: undefined,
       error: undefined,
     },
     nextUrls: res.data.urls || [],
@@ -101,10 +202,10 @@ const fetchPageAndUrlsWithRetry =
     requestHeaders: { [key: string]: string } | undefined,
     includeRegexes: string[] | undefined,
     excludeRegexes: string[] | undefined,
-    retryAttempt: number,
     maxRetries: number,
+    appendToLog: (level: LogLevel, message: string) => Promise<void>,
   ) =>
-  async (url: string): Promise<PageFetchResponse> => {
+  async (url: string): Promise<PageFetchResponse | undefined> => {
     try {
       const res = await fetchPageAndUrlsWithRetryWithThrows(
         nango,
@@ -116,39 +217,14 @@ const fetchPageAndUrlsWithRetry =
         requestHeaders,
         includeRegexes,
         excludeRegexes,
+        maxRetries,
       );
       return res;
     } catch (e) {
-      if (retryAttempt >= maxRetries) {
-        return {
-          file: {
-            id: url,
-            path: url,
-            content: undefined,
-            contentType: undefined,
-            error: `${e}`,
-          },
-        };
-      } else {
-        // setTimeout is not defined in the Nango runtime
-        // await timeout(
-        //   (800 + Math.round(Math.random() * 400)) * Math.pow(2, retryAttempt),
-        // );
-        const res = await fetchPageAndUrlsWithRetry(
-          nango,
-          pageFetcherServiceBaseUrl,
-          pageFetcherServicePath,
-          pageFetcherServiceAPIToken,
-          crawlerRoot,
-          requestHeaders,
-          includeRegexes,
-          excludeRegexes,
-          retryAttempt + 1,
-          maxRetries,
-        )(url);
-        return res;
-      }
+      await appendToLog('error', `Error importing ${url}: ${e}`);
     }
+
+    return undefined;
   };
 
 const parallelFetchPages = async (
@@ -161,6 +237,7 @@ const parallelFetchPages = async (
   requestHeaders: { [key: string]: string } | undefined,
   includeRegexes: string[] | undefined,
   excludeRegexes: string[] | undefined,
+  appendToLog: (level: LogLevel, message: string) => Promise<void>,
 ): Promise<PageFetchResponse[]> => {
   return (
     await Promise.all(
@@ -174,8 +251,8 @@ const parallelFetchPages = async (
           requestHeaders,
           includeRegexes,
           excludeRegexes,
-          0,
-          5,
+          3,
+          appendToLog,
         ),
       ),
     )
@@ -192,6 +269,7 @@ const fetchPages = async (
   requestHeaders: { [key: string]: string } | undefined,
   includeRegexes: string[] | undefined,
   excludeRegexes: string[] | undefined,
+  appendToLog: (level: LogLevel, message: string) => Promise<void>,
 ): Promise<{ files: NangoWebpageFile[]; nextUrls: string[] }> => {
   const files: NangoWebpageFile[] = [];
   const nextUrls: string[] = [];
@@ -210,6 +288,7 @@ const fetchPages = async (
       requestHeaders,
       includeRegexes,
       excludeRegexes,
+      appendToLog,
     );
     filesWithUrls
       .flatMap((f) => f.file)
@@ -238,26 +317,27 @@ export default async function fetchData(nango: NangoSync) {
     throw new Error('Missing base URL.');
   }
 
-  const envVariables = await nango.getEnvironmentVariables();
-  const pageFetcherServiceBaseUrl = envVariables?.find(
-    (v) => v.name === 'CUSTOM_PAGE_FETCH_SERVICE_BASE_URL',
-  )?.value;
-  const pageFetcherServicePath = envVariables?.find(
-    (v) => v.name === 'CUSTOM_PAGE_FETCH_SERVICE_PATH',
-  )?.value;
-  const pageFetcherServiceAPIToken = envVariables?.find(
-    (v) => v.name === 'MARKPROMPT_API_TOKEN',
-  )?.value;
+  const env = await nango.getEnvironmentVariables();
+  const markpromptAPIToken = getEnv(env, 'MARKPROMPT_API_TOKEN');
+  const pageFetcherServiceBaseUrl = getEnv(
+    env,
+    'CUSTOM_PAGE_FETCH_SERVICE_BASE_URL',
+  );
+  const pageFetcherServicePath = getEnv(env, 'CUSTOM_PAGE_FETCH_SERVICE_PATH');
 
   if (
     !pageFetcherServiceBaseUrl ||
     !pageFetcherServicePath ||
-    !pageFetcherServiceAPIToken
+    !markpromptAPIToken
   ) {
-    throw new Error('Missing page fetcher service URL or API token.');
+    throw new Error('Missing service URLs or API token.');
   }
 
-  const filesToSave: NangoWebpageFile[] = [];
+  const syncQueueId = await getSyncQueueId(nango);
+
+  await nango.log('Retrieved syncQueueId: ' + syncQueueId);
+
+  // const filesToSave: NangoWebpageFile[] = [];
 
   const processedUrls: string[] = [];
   let linksToProcess = [baseUrl];
@@ -267,6 +347,14 @@ export default async function fetchData(nango: NangoSync) {
 
   await nango.log(`linksToProcess: ${JSON.stringify(linksToProcess)}`);
 
+  const appendToLog = async (level: LogLevel, message: string) => {
+    return appendToLogFull(nango, syncQueueId, level, message);
+  };
+
+  await appendToLog('info', `Start importing ${baseUrl}.`);
+
+  let count = 0;
+
   while (linksToProcess.length > 0) {
     try {
       numProcessedLinks += linksToProcess.length;
@@ -275,17 +363,23 @@ export default async function fetchData(nango: NangoSync) {
         nango,
         pageFetcherServiceBaseUrl,
         pageFetcherServicePath,
-        pageFetcherServiceAPIToken,
+        markpromptAPIToken,
         baseUrl,
         linksToProcess,
         requestHeaders,
         includeRegexes,
         excludeRegexes,
+        appendToLog,
       );
 
-      files.forEach((file) => {
-        filesToSave.push(file);
-      });
+      // files.forEach((file) => {
+      //   filesToSave.push(file);
+      // });
+
+      await nango.batchSave(files, 'NangoFile');
+      count += files.length;
+
+      await nango.log('batchSave called on ' + files.length + ' files');
 
       linksToProcess.forEach((url) => {
         processedUrls.push(url);
@@ -294,23 +388,34 @@ export default async function fetchData(nango: NangoSync) {
       linksToProcess = nextUrls
         .filter((url) => !processedUrls.includes(url))
         .slice(0, Math.max(0, maxAllowedPages - numProcessedLinks));
+
+      await appendToLog(
+        'info',
+        `Saved ${pluralize(files.length, 'page', 'pages')}. ${
+          linksToProcess.length > 0
+            ? `Importing ${pluralize(
+                linksToProcess.length,
+                'new link',
+                'new links',
+              )}.`
+            : 'No new links found.'
+        }`,
+      );
     } catch (e) {
+      await appendToLog('error', `Error processing pages: ${e}`);
       await nango.log(`[website-pages] ERROR: ${e}`);
-      break;
+      throw e;
     }
   }
 
-  await nango.log(`Files to save: ${filesToSave.length}`);
-
-  await nango.log(
-    'batchSave called!\n\n' +
-      JSON.stringify(
-        filesToSave.map((f) => ({
-          id: f.id,
-          content: f.content?.slice(0, 200).replace(/\\n/, ' '),
-        })),
-      ),
+  await appendToLog(
+    'info',
+    `Done importing. Saved ${pluralize(
+      count,
+      'page',
+      'pages',
+    )} in total. Starting processing.`,
   );
 
-  await nango.batchSave(filesToSave, 'NangoFile');
+  // await nango.batchSave(filesToSave, 'NangoFile');
 }

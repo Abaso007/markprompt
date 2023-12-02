@@ -1,6 +1,101 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { NangoSync, NangoFile } from './models';
 
+const PROVIDER_CONFIG_KEY = 'notion-pages';
+
+//
+// START SHARED LOGGING CODE ==================================================
+//
+
+const getSyncQueueId = async (
+  nango: NangoSync,
+): Promise<string | undefined> => {
+  const env = await nango.getEnvironmentVariables();
+  const markpromptUrl = getEnv(env, 'MARKPROMPT_URL');
+  const markpromptAPIToken = getEnv(env, 'MARKPROMPT_API_TOKEN');
+
+  await nango.log(
+    'getSyncQueueId - markpromptUrl: ' +
+      markpromptUrl +
+      ' : ' +
+      markpromptAPIToken?.slice(0, 5),
+  );
+
+  if (!markpromptUrl || !markpromptAPIToken) {
+    return undefined;
+  }
+
+  const res = await nango.proxy({
+    method: 'GET',
+    baseUrlOverride: markpromptUrl,
+    endpoint: `/api/sync-queues/running?connectionId=${nango.connectionId!}`,
+    providerConfigKey: PROVIDER_CONFIG_KEY,
+    connectionId: nango.connectionId!,
+    headers: {
+      Authorization: `Bearer ${markpromptAPIToken}`,
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+  });
+
+  return res.data?.syncQueueId || undefined;
+};
+
+const pluralize = (value: number, singular: string, plural: string) => {
+  return `${value} ${value === 1 ? singular : plural}`;
+};
+
+type LogLevel = 'info' | 'debug' | 'error' | 'warn';
+
+const appendToLogFull = async (
+  nango: NangoSync,
+  syncQueueId: string | undefined,
+  level: LogLevel,
+  message: string,
+) => {
+  if (!syncQueueId) {
+    return;
+  }
+
+  const env = await nango.getEnvironmentVariables();
+  const markpromptUrl = getEnv(env, 'MARKPROMPT_URL');
+  const markpromptAPIToken = getEnv(env, 'MARKPROMPT_API_TOKEN');
+
+  if (!markpromptUrl || !markpromptAPIToken) {
+    return;
+  }
+
+  await nango.log('appendToLogFull: ' + syncQueueId + ' ' + markpromptUrl);
+
+  try {
+    await nango.proxy({
+      method: 'POST',
+      baseUrlOverride: markpromptUrl,
+      endpoint: `/api/sync-queues/${syncQueueId}/append-log`,
+      providerConfigKey: PROVIDER_CONFIG_KEY,
+      connectionId: nango.connectionId!,
+      data: { message, level },
+      headers: {
+        Authorization: `Bearer ${markpromptAPIToken}`,
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+    });
+  } catch (e) {
+    await nango.log(`Error posting log: ${e}`);
+  }
+};
+
+type EnvEntry = { name: string; value: string };
+
+const getEnv = (env: EnvEntry[] | null, name: string) => {
+  return env?.find((v) => v.name === name)?.value;
+};
+
+//
+// END SHARED LOGGING CODE ====================================================
+//
+
 export default async function fetchData(nango: NangoSync) {
   const pages = (
     await paginate(nango, 'post', '/v1/search', 'Notion pages', 100)
@@ -26,6 +121,15 @@ export default async function fetchData(nango: NangoSync) {
       records.push(mappedRecord);
     }
   }
+
+  const syncQueueId = await getSyncQueueId(nango);
+
+  await appendToLogFull(
+    nango,
+    syncQueueId,
+    'info',
+    `Fetched ${pluralize(records.length, 'record', 'records')} from Notion.`,
+  );
 
   // Important: we have enabled track_deletes, which means that everything
   // that is not present in `batchSave` calls within a sync run will be deleted.
@@ -464,6 +568,9 @@ const mapPage = async (nango: NangoSync, page: any): Promise<NangoFile> => {
       last_edited_time: page.last_edited_time,
       properties,
     },
+    lastModified: page.last_edited_time
+      ? new Date(page.last_edited_time)
+      : new Date(),
     error: undefined,
   };
 };

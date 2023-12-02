@@ -60,6 +60,10 @@ export const FormSubHeading = ({
   );
 };
 
+export const FormFootnote = ({ children }: { children: ReactNode }) => {
+  return <div className="FormFootnote">{children}</div>;
+};
+
 export const FormLabel = ({
   children,
   learnMoreHref,

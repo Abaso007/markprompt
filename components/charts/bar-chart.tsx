@@ -32,6 +32,7 @@ type FixedBarChartProps = {
   noDecorations?: boolean;
   showZero?: boolean;
   countLabel?: string;
+  light?: boolean;
 };
 
 type ResponsiveBarChartProps = {
@@ -54,6 +55,7 @@ const FixedBarChart: FC<FixedBarChartProps & ResponsiveBarChartProps> = ({
   showZero,
   padding,
   countLabel,
+  light,
 }) => {
   const leftAxisWidth = noDecorations ? 0 : LEFT_AXIS_WIDTH;
   const bottomAxisHeight = noDecorations ? 0 : BOTTOM_AXIS_HEIGHT;
@@ -125,7 +127,7 @@ const FixedBarChart: FC<FixedBarChartProps & ResponsiveBarChartProps> = ({
             scale={yScale}
             tickFormat={(d) => formatNumber(d as number)}
             tickLabelProps={() => ({
-              fill: colors.neutral['600'],
+              fill: light ? colors.neutral['400'] : colors.neutral['600'],
               fontSize: 12,
               textAnchor: 'start',
               transition: 'all 0.4s ease-in-out',
@@ -142,7 +144,7 @@ const FixedBarChart: FC<FixedBarChartProps & ResponsiveBarChartProps> = ({
               scale={xScale}
               tickFormat={intervalData[interval].format}
               tickLabelProps={() => ({
-                fill: colors.neutral['600'],
+                fill: light ? colors.neutral['200'] : colors.neutral['600'],
                 fontSize: 12,
                 textAnchor: 'middle',
                 transition: 'all 0.4s ease-in-out',
@@ -153,7 +155,7 @@ const FixedBarChart: FC<FixedBarChartProps & ResponsiveBarChartProps> = ({
             <GridRows
               numTicks={5}
               scale={yScale}
-              stroke={colors.neutral['900']}
+              stroke={light ? colors.neutral['200'] : colors.neutral['900']}
               width={chartWidth}
             />
           </>

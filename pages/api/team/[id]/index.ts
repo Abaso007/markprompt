@@ -27,6 +27,10 @@ export default withTeamAdminAccess(
         .json({ error: `Method ${req.method} Not Allowed` });
     }
 
+    if (!req.query.id) {
+      return res.status(405).json({ error: 'id is required' });
+    }
+
     const supabase = createServerSupabaseClient<Database>({ req, res });
     const {
       data: { session },

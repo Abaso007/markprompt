@@ -10,7 +10,9 @@ export const PUBLIC_NON_ROUTED_API_PATHS = [
   '/api/oauth',
   '/api/subscriptions/webhook',
   '/api/support/contact',
+  '/api/sync-queues',
   '/api/webhooks/nango/sync',
+  '/api/webhooks/zendesk',
   '/x/inngest',
 ];
 
@@ -19,6 +21,8 @@ const UNAUTHED_PATHS = [
   '/about',
   '/blog',
   '/blog/**/*',
+  '/customers',
+  '/customers/**/*',
   '/docs',
   '/home',
   '/embed/*',
@@ -30,9 +34,13 @@ const UNAUTHED_PATHS = [
   '/login/confirm',
   '/login/confirm-signup',
   '/login/email',
+  '/pricing',
+  '/resources',
   '/resources/**/*',
   '/s/*',
   '/signup',
+  '/templates',
+  '/templates/**/*',
   ...PUBLIC_NON_ROUTED_API_PATHS,
 ];
 
@@ -52,5 +60,5 @@ export default async function AppMiddleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/', req.url));
   }
 
-  return NextResponse.next();
+  return res;
 }

@@ -25,7 +25,11 @@ const getSourceId = async (
 ): Promise<DbSource['id'] | undefined> => {
   switch (source.type) {
     case 'github':
-    case 'website':
+    case 'website': {
+      if (!source.data?.url) {
+        throw new Error('Source data url is missing');
+      }
+
       return (
         await supabase
           .from('sources')
@@ -36,6 +40,7 @@ const getSourceId = async (
           .limit(1)
           .maybeSingle()
       )?.data?.id;
+    }
     case 'file-upload':
     case 'api-upload':
       return (

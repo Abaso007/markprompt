@@ -3,7 +3,7 @@ import { Ratelimit } from '@upstash/ratelimit';
 import { Project } from '@/types/types';
 
 import { getRedisClient } from './redis';
-import { pluralize } from './utils';
+import { pluralize } from './utils.nodeps';
 
 type RateLimitIdProjectIdType = { value: Project['id']; type: 'projectId' };
 type RateLimitIdProjectKeyType = { value: string; type: 'projectKey' };

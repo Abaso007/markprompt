@@ -29,12 +29,14 @@ import type { SalesforceDatabaseType } from '@/lib/integrations/salesforce';
 import { isUrl } from '@/lib/utils';
 import { DbSource, Project } from '@/types/types';
 
-import { SyncStep, addSourceAndNangoConnection } from './shared';
+import {
+  SyncStep,
+  addSourceAndNangoConnection,
+  isIntegrationAuthed,
+} from './shared';
 import { Step, ConnectSourceStepState } from './Step';
 import { SalesforceDatabaseSettings } from '../settings-panes/SalesforceDatabase';
 import SourceDialog from '../SourceDialog';
-
-const nango = getNangoClientInstance();
 
 const ConnectStep = ({
   projectId,
@@ -52,6 +54,8 @@ const ConnectStep = ({
   const connect = useCallback(
     async (environment: SalesforceEnvironment, instanceUrl: string) => {
       try {
+        const nango = getNangoClientInstance();
+
         const integrationId = getSalesforceDatabaseIntegrationId(
           databaseType,
           environment,
@@ -64,7 +68,7 @@ const ConnectStep = ({
           name,
           { instance_url: instanceUrl },
           undefined,
-          true,
+          isIntegrationAuthed(integrationId),
         );
         if (!newSource) {
           toast.error('Error connecting to Salesforce');

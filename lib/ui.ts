@@ -1,5 +1,11 @@
 import confetti from 'canvas-confetti';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 import tailwindColors from 'tailwindcss/colors';
+
+export const cn = (...inputs: ClassValue[]) => {
+  return twMerge(clsx(inputs));
+};
 
 export const showConfetti = () => {
   const end = Date.now() + 2 * 1000;

@@ -10,7 +10,7 @@ import {
   getProjectConfigData,
 } from '@/lib/supabase';
 import { getCompletionsResponseText } from '@/lib/utils';
-import { getCompletionsUrl, safeParseInt } from '@/lib/utils.nodeps';
+import { getCompletionsUrl } from '@/lib/utils.nodeps';
 import {
   OpenAIModelIdWithType,
   Project,
@@ -130,6 +130,10 @@ const processProjectQueryStats = async (
 
   // We just go until we time out.
   for (const query of queries) {
+    if (!query.id) {
+      throw new Error('No query id.');
+    }
+
     try {
       if (!query.decrypted_prompt) {
         throw new Error('No prompt in query.');

@@ -2,7 +2,7 @@ import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 import { withProjectAccess } from '@/lib/middleware/common';
-import { safeParseInt } from '@/lib/utils.nodeps';
+import { safeParseInt, safeParseJSON } from '@/lib/utils.nodeps';
 import { Database } from '@/types/supabase';
 import { DbFileWithoutContent, Project } from '@/types/types';
 
@@ -14,6 +14,15 @@ type Data =
   | DbFileWithoutContent[];
 
 const allowedMethods = ['GET', 'DELETE'];
+
+const getTableSortColumnId = (sortingId: string): 'updated_at' | 'title' => {
+  switch (sortingId) {
+    case 'name':
+      return 'title';
+    default:
+      return 'updated_at';
+  }
+};
 
 export default withProjectAccess(
   allowedMethods,
@@ -32,14 +41,26 @@ export default withProjectAccess(
         Math.min(safeParseInt(req.query.limit as string, 50), 50),
       );
       const page = safeParseInt(req.query.page as string, 0);
+      const sorting = safeParseJSON(req.query.sorting as string, {
+        id: 'updated',
+        desc: true,
+      });
+
+      const sourceIdsFilter: string[] = safeParseJSON(
+        req.query.sourceIdsFilter as string,
+        [],
+      );
+
       const startOffset = page * limit;
-      const { data: files, error } = await supabase
-        .from('files')
-        .select(
-          'id,path,meta,project_id,updated_at,source_id,checksum,token_count,internal_metadata, sources!inner (project_id)',
-        )
-        .eq('sources.project_id', projectId)
-        .range(startOffset, startOffset + limit - 1);
+
+      const { data: files, error } = await supabase.rpc('get_files', {
+        q_project_id: projectId,
+        q_order_by_column: getTableSortColumnId(sorting.id),
+        q_order_by_direction: sorting.desc ? 'desc' : 'asc',
+        q_limit: limit,
+        q_offset: startOffset,
+        q_source_ids: sourceIdsFilter,
+      });
 
       if (error) {
         return res.status(400).json({ error: error.message });

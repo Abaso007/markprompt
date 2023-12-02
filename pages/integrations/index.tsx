@@ -1,7 +1,6 @@
-import cn from 'classnames';
+import { InferGetStaticPropsType } from 'next';
 import Link from 'next/link';
 import { FC, JSXElementConstructor, ReactNode } from 'react';
-import Balancer from 'react-wrap-balancer';
 
 import { AlgoliaIcon } from '@/components/icons/brands/Algolia';
 import { FrontIcon } from '@/components/icons/brands/Front';
@@ -13,12 +12,14 @@ import { SlackIcon } from '@/components/icons/brands/Slack';
 import { ZendeskIcon } from '@/components/icons/brands/Zendesk';
 import { DiscordIcon } from '@/components/icons/Discord';
 import { GitHubIcon } from '@/components/icons/GitHub';
-import LandingNavbar from '@/components/layouts/LandingNavbar';
-import { SharedHead } from '@/components/pages/SharedHead';
-import Button from '@/components/ui/Button';
-import { Pattern } from '@/components/ui/Pattern';
+import { LandingLayout } from '@/components/layouts/LandingLayout';
+import { LargeSection } from '@/components/layouts/Pages';
 import { Tag } from '@/components/ui/Tag';
-import { ContactWindow } from '@/components/user/ChatWindow';
+import { useContactDialogContext } from '@/lib/context/contact-dialog';
+import { getIndexPageStaticProps } from '@/lib/pages';
+import { cn } from '@/lib/ui';
+
+export const getStaticProps = getIndexPageStaticProps;
 
 type IntegrationSpec = {
   name: string;
@@ -122,7 +123,7 @@ const Card: FC<IntegrationSpec> = ({
           <Link
             className={cn(
               className,
-              'bg-neutral-1000 no-underline transition hover:bg-neutral-900',
+              'bg-neutral-1000 no-underline transition duration-300 hover:bg-neutral-900',
             )}
             href={href}
           >
@@ -133,7 +134,15 @@ const Card: FC<IntegrationSpec> = ({
     : 'div';
 
   return (
-    <Comp className="not-prose flex flex-col rounded-md border border-neutral-900 p-6">
+    <Comp
+      className={cn(
+        'not-prose home-with-ring flex min-h-[160px] flex-col rounded-md border bg-neutral-1000 p-6',
+        {
+          'border-dashed border-neutral-900': !href,
+          'border-neutral-800': href,
+        },
+      )}
+    >
       <div className="flex flex-row items-center gap-4">
         <div className="flex h-12 flex-none items-center justify-center">
           <Icon className="w-8 flex-none text-white" />
@@ -162,52 +171,45 @@ const Card: FC<IntegrationSpec> = ({
 };
 
 const Integrations = () => {
+  const { setContactDialogOpen } = useContactDialogContext();
+
   return (
-    <>
-      <SharedHead
-        title="Integrations"
-        ogImage="https://markprompt.com/static/cover-integrations.png"
-      />
-      <div className="relative mx-auto min-h-screen w-full">
-        <Pattern />
-        <div className="fixed top-0 left-0 right-0 z-30 h-24 bg-black/30 backdrop-blur">
-          <div className="mx-auto max-w-screen-xl px-6 sm:px-8">
-            <LandingNavbar noAnimation />
-          </div>
-        </div>
-        <div className="relative mx-auto min-h-screen w-full max-w-screen-xl px-6 pt-40 pb-48 sm:px-8">
-          <h1 className="gradient-heading mb-4 text-center text-3xl leading-[36px] tracking-[-0.6px] sm:text-5xl sm:leading-[64px]">
-            Integrations
-          </h1>
-          <p className="mx-auto mt-4 max-w-screen-sm text-center text-lg text-neutral-500 sm:text-xl">
-            <Balancer>
-              Connect data sources and deploy across all distribution channels
-              using integrations with your existing tools.
-            </Balancer>
-          </p>
-          <div className="mt-12 flex justify-center">
-            <ContactWindow
-              closeOnClickOutside
-              Component={
-                <Button
-                  variant="cta"
-                  buttonSize="lg"
-                  aria-label="Request integration"
-                >
-                  Request integration
-                </Button>
-              }
+    <LargeSection>
+      <button
+        className="mt-6 select-none justify-self-start whitespace-nowrap rounded-lg border-0 bg-white px-5 py-2 font-medium text-neutral-900 outline-none ring-sky-500 ring-offset-0 ring-offset-neutral-900 transition hover:bg-white/80 focus:ring"
+        aria-label="Request integration"
+        onClick={() => setContactDialogOpen(true)}
+      >
+        Request integration
+      </button>
+      <div className="mt-24 grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
+        {integrations.map((integration, i) => {
+          return (
+            <Card
+              key={`integration-${integration.name}-${i}`}
+              {...integration}
             />
-          </div>
-          <div className="mx-auto mt-16 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-            {integrations.map((integration, i) => {
-              return <Card key={`${integration.name}-${i}`} {...integration} />;
-            })}
-          </div>
-        </div>
+          );
+        })}
       </div>
-    </>
+    </LargeSection>
   );
 };
 
-export default Integrations;
+const IntegrationsWithLayout: FC<
+  InferGetStaticPropsType<typeof getIndexPageStaticProps>
+> = ({ stars, status }) => {
+  return (
+    <LandingLayout
+      pageTitle="Integrations"
+      heading="Integrations"
+      subheading="Connect data sources and deploy across all distribution channels using integrations with your existing tools."
+      stars={stars}
+      status={status}
+    >
+      <Integrations />
+    </LandingLayout>
+  );
+};
+
+export default IntegrationsWithLayout;

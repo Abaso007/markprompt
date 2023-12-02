@@ -287,3 +287,117 @@
     opacity: 1;
   }
 }
+
+.fade-in-slide-down {
+  animation-name: fade-in-slide-down;
+  animation-duration: 1000ms;
+  animation-fill-mode: both;
+  transition-timing-function: cubic-bezier(0.25, 0.4, 0.55, 1.4);
+}
+
+@keyframes fade-in-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-slide-up-long {
+  animation-name: fade-in-slide-up-long;
+  animation-duration: 1000ms;
+  animation-fill-mode: both;
+  transition-timing-function: cubic-bezier(0.25, 0.4, 0.55, 1.4);
+}
+
+@keyframes fade-in-slide-up-long {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-slide-up {
+  animation-name: fade-in-slide-up;
+  animation-duration: 500ms;
+  animation-fill-mode: both;
+  transition-timing-function: cubic-bezier(0.25, 0.4, 0.55, 1.4);
+}
+
+@keyframes fade-in-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.infinite-horizontal-scroll {
+  animation: infinite-horizontal-scroll 180s linear infinite;
+}
+
+@keyframes infinite-horizontal-scroll {
+  from {
+    transform: translateX(0%);
+  }
+  to {
+    transform: translateX(-75%);
+  }
+}
+
+.animate-fade-out-long {
+  animation-name: fade-out;
+  animation-duration: 2000ms;
+  animation-fill-mode: both;
+  transition-timing-function: cubic-bezier(0.25, 0.4, 0.55, 1.4);
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.skew {
+  transform-style: preserve-3d;
+  transform: perspective(1000px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+  transition: transform 0.3s;
+}
+
+.skew:hover {
+  transform-style: preserve-3d;
+  transform: perspective(1000px) rotateX(1deg) rotateY(-3deg) rotateZ(2deg);
+}
+
+.skew > :first-child {
+  transform: translateX(0px) translateY(0px) translateZ(0px);
+  transition: transform 0.3s;
+}
+
+.skew:hover > :first-child {
+  transform: translateX(-30px) translateY(40px) translateZ(10px);
+  transition: transform 0.3s;
+}
+
+.skew > :last-child {
+  transform: translateX(100px) translateY(-100px) translateZ(0px);
+  transition: transform 0.3s;
+}
+
+.skew:hover > :last-child {
+  transform: translateX(100px) translateY(-170px) translateZ(-50px);
+  transition: transform 0.3s;
+}

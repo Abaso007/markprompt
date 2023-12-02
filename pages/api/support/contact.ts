@@ -23,7 +23,7 @@ export default async function handler(
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const { email, message } = req.body;
+  const { email, firstName, lastName, message } = req.body;
   if (!isValidEmail(email) || !message) {
     return res.status(400).json({ error: 'Invalid email or message.' });
   }
@@ -50,7 +50,7 @@ export default async function handler(
       from: process.env.NEXT_PUBLIC_SUPPORT_EMAIL!,
       to: process.env.NEXT_PUBLIC_SUPPORT_EMAIL!,
       reply_to: email,
-      subject: `Contact request from ${email}`,
+      subject: `Contact request from ${firstName} ${lastName}`,
       text: message,
     });
 

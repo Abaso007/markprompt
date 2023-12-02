@@ -22,7 +22,11 @@ const DeleteSourceDialog: FC<DeleteSourceDialogProps> = ({
   source,
   onComplete,
 }) => {
-  const { mutate: mutateFiles } = useFiles();
+  const {
+    mutate: mutateFiles,
+    mutateCount,
+    mutateCountWithFilters,
+  } = useFiles();
   const { mutate: mutateSources } = useSources();
   const { mutate: mutateFileStats } = useUsage();
   const [loading, setLoading] = useState(false);
@@ -58,6 +62,8 @@ const DeleteSourceDialog: FC<DeleteSourceDialogProps> = ({
           await mutateSources();
           await mutateFiles();
           await mutateFileStats();
+          await mutateCount();
+          await mutateCountWithFilters();
           setLoading(false);
           onComplete();
 

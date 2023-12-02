@@ -17,16 +17,10 @@ import { MarkdownContainer } from '@/components/emails/templates/MarkdownContain
 import { JSONViewer } from '@/components/ui/JSONViewer';
 import { SkeletonTable } from '@/components/ui/Skeletons';
 import { Tag } from '@/components/ui/Tag';
-import { getFileIdBySourceAndPath } from '@/lib/api';
 import { formatShortDateTimeInTimeZone } from '@/lib/date';
 import useProject from '@/lib/hooks/use-project';
 import { fetcher } from '@/lib/utils';
-import {
-  DbConversation,
-  DbFile,
-  Project,
-  PromptQueryStatFull,
-} from '@/types/types';
+import { DbConversation, Project, PromptQueryStatFull } from '@/types/types';
 
 const Loading = <p className="p-4 text-sm text-neutral-500">Loading...</p>;
 

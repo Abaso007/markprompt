@@ -199,6 +199,26 @@ create table public.sync_queues (
 );
 comment on table public.sync_queues is 'Sync queues.';
 
+-- Integrations
+create table public.integrations (
+  id              uuid primary key default uuid_generate_v4(),
+  inserted_at     timestamp with time zone default timezone('utc'::text, now()) not null,
+  name            text,
+  slug            text,
+  data            jsonb
+);
+comment on table public.sync_queues is 'Integrations.';
+
+-- Installations
+create table public.integration_installs (
+  id              uuid primary key default uuid_generate_v4(),
+  inserted_at     timestamp with time zone default timezone('utc'::text, now()) not null,
+  integration_id  uuid references public.integrations on delete cascade not null,
+  project_id      uuid references public.projects on delete cascade not null,
+  config          jsonb
+);
+comment on table public.sync_queues is 'Integration installs.';
+
 -- Functions
 
 create function public.handle_new_user()
@@ -387,9 +407,9 @@ create or replace function query_stats_top_references(
   match_count int
 )
 returns table (
+  title text,
   path text,
-  source_type text,
-  source_data jsonb,
+  source jsonb,
   occurrences bigint
 )
 language plpgsql
@@ -397,9 +417,9 @@ as $$
 begin
   return query
   select
-    reference->>'path' as path,
-    reference->'source'->>'type' as source_type,
-    reference->'source'->'data' as source_data,
+    reference->'file'->>'title' as title,
+    reference->'file'->>'path' as path,
+    reference->'file'->'source' as source,
     count(*) as occurrences
   from query_stats,
     jsonb_array_elements(meta->'references') as reference
@@ -407,9 +427,8 @@ begin
     query_stats.project_id = query_stats_top_references.project_id
     and query_stats.created_at >= query_stats_top_references.from_tz
     and query_stats.created_at <= query_stats_top_references.to_tz
-    and reference->>'path' is not null
-    and reference->'source'->>'type' is not null
-  group by path, source_data, source_type
+    and reference->'file'->'source'->'data'->>'connectionId' is not null
+  group by title, path, source
   order by occurrences desc
   limit query_stats_top_references.match_count;
 end;
@@ -797,6 +816,51 @@ begin
     rankedsyncqueues.rn = 1;
 end;
 $$;
+
+-- Get files (data browser)
+
+create or replace function get_files(
+  q_project_id uuid,
+  q_order_by_column text,
+  q_order_by_direction text,
+  q_limit int,
+  q_offset int,
+  q_source_ids uuid[]
+)
+returns table (
+    id bigint,
+    path text,
+    meta jsonb,
+    title text,
+    project_id uuid,
+    updated_at timestamp with time zone,
+    source_id uuid,
+    checksum text,
+    token_count int,
+    internal_metadata jsonb
+) as $$
+declare
+  source_id_filter text;
+begin
+  if q_source_ids is not null and array_length(q_source_ids, 1) > 0 then
+      source_id_filter := 'and sources.id = any($4) ';
+  else
+      source_id_filter := '';
+  end if;
+
+  return query
+  execute
+  'select files.id, path, meta, coalesce(files.meta->>''title'',path) as title, files.project_id, files.updated_at, source_id, checksum, token_count, internal_metadata
+  from files
+  inner join sources
+  on sources.id = files.source_id
+  where sources.project_id = $1 ' || source_id_filter ||
+  'order by ' || q_order_by_column || ' ' ||
+    (case when q_order_by_direction = 'asc' then 'asc' else 'desc' end) || ' ' ||
+  'limit $2 offset $3'
+  using q_project_id, q_limit, q_offset, q_source_ids;
+end;
+$$ language plpgsql;
 
 -- Functions end
 

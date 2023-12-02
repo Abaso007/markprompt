@@ -40,20 +40,20 @@ const nextConfig = {
       { protocol: 'https', hostname: '**.slack-edge.com' },
     ],
   },
-  modularizeImports: {
-    'lucide-react': {
-      transform: 'lucide-react/{{lowerCase kebabCase member}}',
-      skipDefaultConversion: true,
-    },
-    'date-fns': {
-      transform: 'date-fns/{{member}}',
-    },
-    lodash: {
-      transform: 'lodash/{{member}}',
-    },
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'date-fns', 'lodash'],
   },
   async headers() {
     return [{ source: '/(.*)', headers: corsHeaders }];
+  },
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.(glsl|vs|fs|vert|frag)$/,
+      exclude: /node_modules/,
+      use: ['raw-loader', 'glslify-loader'],
+    });
+
+    return config;
   },
 };
 

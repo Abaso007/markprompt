@@ -2,7 +2,14 @@ import { Globe } from 'lucide-react';
 import { FC, useMemo } from 'react';
 
 import useSources from '@/lib/hooks/use-sources';
-import { DbSource, Project, SourceConfigurationView } from '@/types/types';
+import { removeSchema } from '@/lib/utils.nodeps';
+import {
+  DbSource,
+  NangoSourceDataType,
+  Project,
+  SourceConfigurationView,
+  WebsitePagesSyncMetadata,
+} from '@/types/types';
 
 import { BaseConfigurationDialog } from './BaseConfiguration';
 import { WebsitePagesSettings } from '../settings-panes/WebsitePages';
@@ -24,9 +31,23 @@ const WebsitePagesConfigurationDialog: FC<
     return sources?.find((s) => s.id === sourceId);
   }, [sources, sourceId]);
 
+  const syncMetadata = (source?.data as NangoSourceDataType)
+    ?.syncMetadata as WebsitePagesSyncMetadata;
+
   return (
     <BaseConfigurationDialog
       source={source}
+      customMetadata={
+        syncMetadata?.baseUrl
+          ? [
+              {
+                label: 'Base URL',
+                value: removeSchema(syncMetadata.baseUrl),
+                href: syncMetadata.baseUrl,
+              },
+            ]
+          : []
+      }
       defaultView={defaultView}
       open={open}
       onOpenChange={onOpenChange}

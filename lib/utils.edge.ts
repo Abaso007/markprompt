@@ -31,7 +31,7 @@ export const isAppHost = (host: string) => {
 };
 
 export const removeSchema = (origin: string) => {
-  return origin.replace(/(^\w+:|^)\/\//, '');
+  return origin?.replace(/(^\w+:|^)\/\//, '');
 };
 
 export const getDomain = (url: string) => {

@@ -285,14 +285,21 @@ export const isSupportedFileType = (pathOrName: string): boolean => {
   return !!(extension && SUPPORTED_EXTENSIONS.includes(extension));
 };
 
-export const pluralize = (value: number, singular: string, plural: string) => {
-  return `${value} ${value === 1 ? singular : plural}`;
-};
-
 interface SWRError extends Error {
   status: number;
   info: any;
 }
+
+export const fetcherOrUndefined = async <T = any>(
+  input: RequestInfo,
+  init?: RequestInit,
+): Promise<T | undefined> => {
+  const res = await fetch(input, init);
+  if (!res.ok) {
+    return undefined;
+  }
+  return res.json();
+};
 
 export const fetcher = async <T = any>(
   input: RequestInfo,
@@ -610,11 +617,11 @@ export const getGitHubOwnerRepoString = (url: string) => {
   return `${info.owner}/${info.repo}`;
 };
 
-export const getLabelForSource = (source: Source, inline: boolean) => {
+export const getLabelForSource = (source: Source, inline: boolean): string => {
   switch (source.type) {
     case 'github': {
       const data = source.data as GitHubSourceDataType;
-      return getGitHubOwnerRepoString(data.url);
+      return getGitHubOwnerRepoString(data.url) || data.url;
     }
     case 'motif': {
       const data = source.data as MotifSourceDataType;
@@ -748,7 +755,7 @@ export const toNormalizedUrl = (url: string, useInsecureSchema?: boolean) => {
 export const removeTrailingSlashAndHash = (url: string) => {
   const urlObj = new URL(url);
   urlObj.hash = '';
-  return urlObj.toString().replace(/\/+$/, '');
+  return urlObj.toString()?.replace(/\/+$/, '');
 };
 
 export const addSchemaRemoveTrailingSlashAndHash = (
@@ -775,7 +782,7 @@ export const removeTrailingSlashQueryParamsAndHash = (url: string) => {
 };
 
 export const removeTrailingSlash = (url: string) => {
-  return url.replace(/\/+$/, '');
+  return url?.replace(/\/+$/, '');
 };
 
 export const getUrlHostname = (url: string) => {
@@ -886,6 +893,9 @@ export const getIconForSource = (source: Pick<DbSource, 'type' | 'data'>) => {
       }
       if (integrationId?.startsWith('notion-')) {
         return NotionIcon;
+      }
+      if (integrationId?.startsWith('github-')) {
+        return GitHubIcon;
       }
       return Globe;
     }

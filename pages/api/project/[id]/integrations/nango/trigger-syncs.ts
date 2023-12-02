@@ -14,6 +14,7 @@ import { SyncData } from '@/types/types';
 type Data = {
   status?: string;
   error?: string;
+  data?: { connectionIds?: string[] };
 };
 
 const allowedMethods = ['POST'];
@@ -41,7 +42,7 @@ const triggerSyncForSource = async (data: SyncData) => {
     data.connectionId,
   );
 
-  for (const sync of syncStatuses.syncs) {
+  for (const sync of syncStatuses?.syncs || []) {
     // After a connection is made, its type is `INITIAL` and its sync state
     // is `PAUSED`. Calling `triggerSync` in this case leads to the sync
     // status to be `STOPPED` instead of `SUCCESS`. So we need to treat
@@ -85,15 +86,22 @@ export default withProjectAccess(
   async (req: NextApiRequest, res: NextApiResponse<Data>) => {
     if (req.method === 'POST') {
       const data = req.body.data as SyncData[];
+      const errorConnectionIds: string[] = [];
       await Promise.all(
         data.map(async (d) => {
           try {
             await triggerSyncForSource(d);
           } catch {
-            // Do nothing
+            errorConnectionIds.push(d.connectionId);
           }
         }),
       );
+      if (errorConnectionIds.length > 0) {
+        return res.status(404).json({
+          error: 'Error syncing connections',
+          data: { connectionIds: errorConnectionIds },
+        });
+      }
 
       return res.status(200).json({ status: 'ok' });
     }

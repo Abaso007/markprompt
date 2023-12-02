@@ -21,10 +21,10 @@ import {
 import {
   createChecksum,
   getNameFromPath,
-  pluralize,
   shouldIncludeFileWithPath,
 } from '@/lib/utils';
 import { getBufferFromReadable } from '@/lib/utils.node';
+import { pluralize } from '@/lib/utils.nodeps';
 import {
   API_ERROR_CODE_CONTENT_TOKEN_QUOTA_EXCEEDED,
   API_ERROR_ID_CONTENT_TOKEN_QUOTA_EXCEEDED,

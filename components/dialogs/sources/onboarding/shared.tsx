@@ -4,18 +4,47 @@ import { FC, useCallback, useState } from 'react';
 import Button from '@/components/ui/Button';
 import { addSource } from '@/lib/api';
 import useSources from '@/lib/hooks/use-sources';
-import { deleteConnection, setMetadata } from '@/lib/integrations/nango.client';
+import {
+  deleteConnection,
+  setMetadata,
+  triggerSyncs,
+} from '@/lib/integrations/nango.client';
 import { generateConnectionId } from '@/lib/utils';
-import { DbSource, NangoIntegrationId, Project } from '@/types/types';
+import {
+  DbSource,
+  NangoIntegrationId,
+  NangoSourceDataType,
+  Project,
+  SyncData,
+} from '@/types/types';
 
 import { Step, ConnectSourceStepState } from './Step';
+
+export const createNangoConnection = async (
+  nango: Nango,
+  integrationId: NangoIntegrationId,
+  connectionId: string,
+  nangoConnectionConfigParams: Record<string, string> | undefined,
+  authed: boolean,
+) => {
+  if (authed) {
+    await nango.auth(integrationId, connectionId, nangoConnectionConfigParams);
+  } else {
+    await nango.create(integrationId, connectionId, {
+      params: nangoConnectionConfigParams || {},
+    });
+  }
+};
 
 export const addSourceAndNangoConnection = async (
   nango: Nango,
   projectId: Project['id'],
   integrationId: NangoIntegrationId,
   name: string,
+  // Nango-specific, like instance_url
   nangoConnectionConfigParams: Record<string, string> | undefined,
+  // Info stored in Nango metadata (to use e.g. in a Nango sync) and in
+  // the source data row in our database.
   syncMetadata: Record<string, string> | undefined,
   authed: boolean,
 ): Promise<DbSource | undefined> => {
@@ -25,17 +54,13 @@ export const addSourceAndNangoConnection = async (
   const connectionId = generateConnectionId();
 
   try {
-    if (authed) {
-      await nango.auth(
-        integrationId,
-        connectionId,
-        nangoConnectionConfigParams,
-      );
-    } else {
-      await nango.create(integrationId, connectionId, {
-        params: nangoConnectionConfigParams || {},
-      });
-    }
+    await createNangoConnection(
+      nango,
+      integrationId,
+      connectionId,
+      nangoConnectionConfigParams,
+      authed,
+    );
 
     const newSource = await addSource(projectId, 'nango', {
       integrationId,
@@ -63,6 +88,70 @@ export const addSourceAndNangoConnection = async (
     }
     // Throw error from nango.auth to catch on the client side.
     throw e;
+  }
+};
+
+export const triggerSyncsWithRecovery = async (
+  nango: Nango,
+  projectId: Project['id'],
+  syncData: SyncData[],
+  sources: Pick<DbSource, 'type' | 'data'>[],
+) => {
+  try {
+    await triggerSyncs(projectId, syncData);
+  } catch (e: any) {
+    if (e.status === 404) {
+      const connectionIds = (e as any).info?.data?.connectionIds as string[];
+      if (connectionIds && connectionIds.length > 0) {
+        const sourcesToRecover = sources.filter((s) => {
+          const connectionId = (s.data as NangoSourceDataType)?.connectionId;
+          return connectionId && connectionIds.includes(connectionId);
+        });
+        await recoverDeletedConnection(nango, projectId, sourcesToRecover);
+        // Re-run syncs on recovered connections
+        await triggerSyncs(
+          projectId,
+          syncData.filter(
+            (d) => d.connectionId && connectionIds.includes(d.connectionId),
+          ),
+        );
+      }
+    } else {
+      console.error(`Error running syncs: ${e}`);
+    }
+  }
+};
+
+const recoverDeletedConnection = async (
+  nango: Nango,
+  projectId: Project['id'],
+  sources: Pick<DbSource, 'type' | 'data'>[],
+) => {
+  for (const source of sources) {
+    try {
+      const data = source.data as NangoSourceDataType;
+      // We can reuse the previous (deleted) connection id so
+      // that we don't need to update the database entries.
+      await createNangoConnection(
+        nango,
+        data.integrationId,
+        data.connectionId,
+        data.connectionConfig,
+        isIntegrationAuthed(data.integrationId),
+      );
+
+      // Set the Nango-specific metadata.
+      if (data.syncMetadata) {
+        await setMetadata(
+          projectId,
+          data.integrationId,
+          data.connectionId,
+          data.syncMetadata,
+        );
+      }
+    } catch (e) {
+      console.error(`Unable to recover source: ${e}`);
+    }
   }
 };
 
@@ -101,4 +190,13 @@ export const SyncStep: FC<SyncStepProps> = ({ source, state, onComplete }) => {
       </Button>
     </Step>
   );
+};
+
+export const isIntegrationAuthed = (integrationId: NangoIntegrationId) => {
+  switch (integrationId) {
+    case 'website-pages':
+      return false;
+    default:
+      return true;
+  }
 };

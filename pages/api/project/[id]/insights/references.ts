@@ -1,11 +1,16 @@
 import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { isPresent } from 'ts-is-present';
 
 import { withProjectAccess } from '@/lib/middleware/common';
 import { createServiceRoleSupabaseClient } from '@/lib/supabase';
 import { safeParseInt } from '@/lib/utils.nodeps';
 import { Database } from '@/types/supabase';
-import { Project, ReferenceWithOccurrenceCount } from '@/types/types';
+import {
+  NangoSourceDataType,
+  Project,
+  ReferenceWithOccurrenceCount,
+} from '@/types/types';
 
 type Data =
   | {
@@ -42,33 +47,53 @@ export default withProjectAccess(
 
     if (req.method === 'GET') {
       const limit = Math.min(safeParseInt(req.query.limit as string, 50), 50);
-      const {
-        error,
-        data: references,
-      }: {
-        error: { message: string } | null;
-        data:
-          | {
-              path: string;
-              occurrences: number;
-              source_type: any;
-              source_data: any;
-            }[]
-          | null;
-      } = await supabaseAdmin.rpc('query_stats_top_references', {
-        project_id: projectId,
-        from_tz: req.query.from as string,
-        to_tz: req.query.to as string,
-        match_count: limit,
-      });
+      const { data, error } = await supabaseAdmin.rpc(
+        'query_stats_top_references',
+        {
+          project_id: projectId,
+          from_tz: req.query.from as string,
+          to_tz: req.query.to as string,
+          match_count: limit,
+        },
+      );
 
       if (error) {
         return res.status(400).json({ error: error.message });
       }
 
-      if (!references) {
+      if (!data) {
         return res.status(404).json({ error: 'No results found.' });
       }
+
+      const { data: sources } = await supabaseAdmin
+        .from('sources')
+        .select('data->connectionId')
+        .eq('project_id', projectId);
+
+      const references = data
+        .map((d) => {
+          const source: {
+            type: Database['public']['Enums']['source_type'];
+            data: NangoSourceDataType;
+          } = d.source as any;
+          const sourceExists = sources?.some(
+            (s) => s.connectionId === source.data.connectionId,
+          );
+
+          // Only include references to existing sources
+          if (!sourceExists) {
+            return undefined;
+          }
+
+          return {
+            title: d.title,
+            path: d.path,
+            sourceType: source.type,
+            sourceData: source.data,
+            occurrences: d.occurrences,
+          };
+        })
+        .filter(isPresent);
 
       return res.status(200).json(references);
     }

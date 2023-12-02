@@ -200,7 +200,7 @@ const PricingCard = ({
                 const priceId =
                   tier.price?.[showAnnual ? 'yearly' : 'monthly']?.priceId;
                 if (!priceId) {
-                  toast.error('No plan associated to this option.');
+                  toast.error('No plan associated to this option');
                 }
                 const { sessionId } = await fetch(
                   '/api/subscriptions/create-checkout-session',

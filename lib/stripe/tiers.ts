@@ -336,7 +336,7 @@ export const canUseCustomModelConfig = (
   return !!getTierDetails(teamTierInfo).features?.customModelConfig?.enabled;
 };
 
-export const isAutoSyncAccessible = (teamTierInfo: TeamTierInfo): boolean => {
+export const isAutoSyncEnabled = (teamTierInfo: TeamTierInfo): boolean => {
   return !!getTierDetails(teamTierInfo).features?.autoSync?.enabled;
 };
 

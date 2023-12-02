@@ -6,7 +6,6 @@ import { isPresent } from 'ts-is-present';
 import { Database, Json } from '@/types/supabase';
 import {
   DbUser,
-  OAuthProvider,
   Project,
   DbSource,
   DbTeam,
@@ -19,10 +18,10 @@ import {
   DbSyncQueue,
   LogLevel,
   DbFileMetaChecksum,
+  MarkpromptConfig,
 } from '@/types/types';
 
 import { DEFAULT_MARKPROMPT_CONFIG } from './constants';
-import { MarkpromptConfig } from './schema';
 import {
   INFINITE_TOKEN_ALLOWANCE,
   PlanDetails,
@@ -111,42 +110,6 @@ export const getTeamSlugAndStripeCustomerId = async (
         stripeCustomerId: data.stripe_customer_id,
       }
     : undefined;
-};
-
-export const setGitHubAuthState = async (
-  supabase: SupabaseClient<Database>,
-  userId: DbUser['id'],
-): Promise<string> => {
-  const state = generateKey();
-  const { data } = await supabase
-    .from('user_access_tokens')
-    .select('id')
-    .match({ user_id: userId, provider: 'github' })
-    .limit(1)
-    .maybeSingle();
-  if (data) {
-    await supabase
-      .from('user_access_tokens')
-      .update({ state })
-      .eq('id', data.id);
-  } else {
-    await supabase
-      .from('user_access_tokens')
-      .insert([{ user_id: userId, state, provider: 'github' }]);
-  }
-  return state;
-};
-
-export const deleteUserAccessToken = async (
-  supabase: SupabaseClient<Database>,
-  userId: DbUser['id'],
-  provider: OAuthProvider,
-): Promise<PostgrestError | null> => {
-  const { error } = await supabase
-    .from('user_access_tokens')
-    .delete()
-    .match({ user_id: userId, provider });
-  return error;
 };
 
 export const getProjectIdFromSource = async (
@@ -278,7 +241,7 @@ export const getTeamUsageInfoByTeamOrProject = async (
     .select('stripe_price_id,team_token_count,plan_details')
     .eq(
       teamOrProjectId.teamId ? 'team_id' : 'project_id',
-      teamOrProjectId.teamId ?? teamOrProjectId.projectId,
+      (teamOrProjectId.teamId ?? teamOrProjectId.projectId)!,
     )
     .limit(1)
     .maybeSingle();
@@ -291,7 +254,7 @@ export const getTeamUsageInfoByTeamOrProject = async (
       .select('stripe_price_id,plan_details')
       .eq(
         teamOrProjectId.teamId ? 'team_id' : 'project_id',
-        teamOrProjectId.teamId ?? teamOrProjectId.projectId,
+        (teamOrProjectId.teamId ?? teamOrProjectId.projectId)!,
       )
       .limit(1)
       .maybeSingle();
@@ -574,12 +537,12 @@ export const getOrCreateRunningSyncQueueForSource = async (
     .eq('status', 'running')
     .order('created_at', { ascending: false })
     .limit(1)
-    .select()
     .maybeSingle();
 
   if (data?.id) {
     return data?.id;
   }
+
   return createSyncQueue(supabase, sourceId);
 };
 
@@ -593,9 +556,11 @@ export const createSyncQueue = async (
     .select('id')
     .limit(1)
     .maybeSingle();
+
   if (error || !data?.id) {
     throw error;
   }
+
   return data.id;
 };
 
@@ -629,7 +594,7 @@ export const updateSyncQueueStatus = async (
   await supabase.from('sync_queues').update(payload).eq('id', id);
 };
 
-const appendLogToSyncQueue = async (
+export const appendLogToSyncQueue = async (
   supabase: SupabaseClient<Database>,
   syncQueueId: DbSyncQueue['id'],
   message: string,

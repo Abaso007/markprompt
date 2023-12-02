@@ -227,7 +227,7 @@ export const safeParseJSON = <T>(
 };
 
 export const removeSchema = (origin: string) => {
-  return origin.replace(/(^\w+:|^)\/\//, '');
+  return origin?.replace(/(^\w+:|^)\/\//, '');
 };
 
 export const getDomain = (url: string) => {
@@ -288,5 +288,64 @@ export const deepMerge = (target: any | null, source: any | null) => {
         ? deepMerge((target || {})[key], (source || {})[key])
         : structuredClone(result[key]);
   }
+  return result;
+};
+
+export const formatTimezone = (timezone: string) => {
+  const parts = timezone.split('/');
+  if (parts.length > 1) {
+    return `${parts[1].replace('_', ' ')} (${parts[0].replace('_', ' ')})`;
+  }
+  return timezone;
+};
+
+export const pluralize = (value: number, singular: string, plural: string) => {
+  return `${value} ${value === 1 ? singular : plural}`;
+};
+
+export const toRegexpList = (text: string) => {
+  return text
+    .split('\n')
+    .map((url) => url.trim())
+    .filter((url) => url && url.length > 0 && !url.startsWith('# '));
+};
+
+export const extractGithubRepo = (
+  url: string,
+): { owner: string; repo: string; branch: string | null } | null => {
+  const githubUrlPattern =
+    /^https?:\/\/github\.com\/([^/]+)\/([^/]+)(\/tree\/([^/]+))?/;
+  const match = url.match(githubUrlPattern);
+
+  if (match) {
+    return {
+      owner: match[1],
+      repo: match[2],
+      branch: match[4] || null,
+    };
+  } else {
+    return null;
+  }
+};
+
+export const removeConsecutiveDuplicates = <T>(
+  arr: T[],
+  comp?: (a: T, b: T) => boolean,
+) => {
+  if (arr.length === 0) {
+    return [];
+  }
+
+  const result = [arr[0]];
+
+  for (let i = 1; i < arr.length; i++) {
+    if (
+      (comp && !comp(arr[i], arr[i - 1])) ||
+      (!comp && arr[i] !== arr[i - 1])
+    ) {
+      result.push(arr[i]);
+    }
+  }
+
   return result;
 };

@@ -6,7 +6,6 @@ import {
   FormikValues,
 } from 'formik';
 import { FC, useCallback } from 'react';
-import { toast } from 'sonner';
 
 import Button from '@/components/ui/Button';
 import {
@@ -22,28 +21,25 @@ import { NoAutoInput } from '@/components/ui/Input';
 import { Note } from '@/components/ui/Note';
 import { RecordEditor } from '@/components/ui/RecordEditor';
 import { NoAutoTextArea } from '@/components/ui/TextArea';
-import { setSourceData } from '@/lib/api';
 import useSources from '@/lib/hooks/use-sources';
-import { setMetadata } from '@/lib/integrations/nango.client';
-import { WebsitePagesSyncMetadata } from '@/lib/integrations/website';
 import { parseProcessorOptions } from '@/lib/schema';
 import { capitalize } from '@/lib/utils';
-import { DbSource, NangoSourceDataType, Project } from '@/types/types';
+import { toRegexpList } from '@/lib/utils.nodeps';
+import {
+  DbSource,
+  NangoSourceDataType,
+  Project,
+  WebsitePagesSyncMetadata,
+} from '@/types/types';
 
 import { ProcessorOptions } from './ProcessorOptions';
+import { updateSourceData } from './utils';
 
 type WebsitePagesSettingsProps = {
   projectId: Project['id'];
   source: DbSource | undefined;
   forceDisabled?: boolean;
   onDidCompletedOrSkip?: () => void;
-};
-
-const toRegexpList = (text: string) => {
-  return text
-    .split('\n')
-    .map((url) => url.trim())
-    .filter((url) => url && url.length > 0 && !url.startsWith('# '));
 };
 
 export const WebsitePagesSettings: FC<WebsitePagesSettingsProps> = ({
@@ -55,58 +51,33 @@ export const WebsitePagesSettings: FC<WebsitePagesSettingsProps> = ({
   const { mutate: mutateSources, isNameAvailable } = useSources();
 
   const sourceData = source?.data as NangoSourceDataType | undefined;
-  const syncMetadata = sourceData?.syncMetadata as WebsitePagesSyncMetadata;
+  const syncMetadata = sourceData?.syncMetadata as
+    | WebsitePagesSyncMetadata
+    | undefined;
 
-  const updateSourceData = useCallback(
+  const _updateSourceData = useCallback(
     async (
       newSourceData: Partial<NangoSourceDataType>,
       setSubmitting: (submitting: boolean) => void,
     ) => {
-      if (
-        !projectId ||
-        !source ||
-        !sourceData?.integrationId ||
-        !sourceData?.connectionId
-      ) {
-        return;
-      }
-
-      setSubmitting(true);
-
-      await setSourceData(projectId, source.id, {
-        ...(source.data as any),
-        ...newSourceData,
-        syncMetadata: {
-          ...syncMetadata,
-          ...newSourceData.syncMetadata,
-        },
-      });
-
-      if (newSourceData?.syncMetadata) {
-        await setMetadata(
-          projectId,
-          sourceData.integrationId,
-          sourceData.connectionId,
-          {
-            ...syncMetadata,
-            ...newSourceData?.syncMetadata,
-          },
-        );
-      }
-
-      setSubmitting(false);
-      toast.success('Configuration has been updated');
-      onDidCompletedOrSkip?.();
-      await mutateSources();
+      await updateSourceData(
+        projectId,
+        source,
+        syncMetadata,
+        sourceData,
+        newSourceData,
+        setSubmitting,
+        mutateSources,
+        onDidCompletedOrSkip,
+      );
     },
     [
-      mutateSources,
-      syncMetadata,
-      onDidCompletedOrSkip,
       projectId,
       source,
-      sourceData?.connectionId,
-      sourceData?.integrationId,
+      syncMetadata,
+      sourceData,
+      mutateSources,
+      onDidCompletedOrSkip,
     ],
   );
 
@@ -132,7 +103,7 @@ export const WebsitePagesSettings: FC<WebsitePagesSettingsProps> = ({
           return errors;
         }}
         onSubmit={async (values, { setSubmitting }) => {
-          await updateSourceData({ name: values.name }, setSubmitting);
+          await _updateSourceData({ name: values.name }, setSubmitting);
         }}
       >
         {({ isSubmitting, isValid }) => (
@@ -197,7 +168,7 @@ export const WebsitePagesSettings: FC<WebsitePagesSettingsProps> = ({
             excludeSelectors: values.excludeSelectors,
             processorOptions: parseProcessorOptions(values.processorOptions),
           };
-          await updateSourceData(
+          await _updateSourceData(
             { syncMetadata: newSyncMetadata },
             setSubmitting,
           );
@@ -271,16 +242,25 @@ export const WebsitePagesSettings: FC<WebsitePagesSettingsProps> = ({
               <FormHeadingGroup>
                 <FormHeading>Content targets</FormHeading>
                 <FormSubHeading>
-                  Specify which parts of the page to include or exclude, using
-                  CSS selectors.{' '}
+                  Specify which parts of the page to include or exclude, using{' '}
                   <a
                     className="subtle-underline"
                     href="https://github.com/fb55/css-select/blob/master/README.md#supported-selectors"
                     rel="noreferrer"
                     target="_blank"
                   >
-                    Learn more
+                    CSS selectors
                   </a>
+                  . The full{' '}
+                  <a
+                    className="subtle-underline"
+                    href="https://cheerio.js.org/docs/basics/selecting"
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Cheerio syntax
+                  </a>{' '}
+                  is also supported.
                 </FormSubHeading>
               </FormHeadingGroup>
               <FormField>

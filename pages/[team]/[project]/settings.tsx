@@ -15,7 +15,7 @@ import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
 import ConfirmDialog from '@/components/dialogs/Confirm';
-import { ProjectSettingsLayout } from '@/components/layouts/ProjectSettingsLayout';
+import { ProjectLayout } from '@/components/layouts/ProjectLayout';
 import Button from '@/components/ui/Button';
 import { ErrorLabel, FormLabel, FormRoot } from '@/components/ui/Forms';
 import { NoAutoInput } from '@/components/ui/Input';
@@ -105,13 +105,13 @@ const ProjectSettingsPage = () => {
   );
 
   if (!team || !projects || !project) {
-    return <ProjectSettingsLayout title="Settings" width="sm" />;
+    return <ProjectLayout title="Settings" width="sm" />;
   }
 
   const domainNames = domains?.map((d) => d.name) || [];
 
   return (
-    <ProjectSettingsLayout title="Settings" width="sm">
+    <ProjectLayout title="Settings" width="sm">
       <div className="flex flex-col gap-8">
         <SettingsCard title="General">
           <Formik
@@ -253,7 +253,7 @@ const ProjectSettingsPage = () => {
                     toast.success('Domain added.');
                     resetForm({ values: { domain_name: '' } });
                   } catch (e) {
-                    toast.error('Error adding domain.');
+                    toast.error('Error adding domain');
                     console.error('Error adding domain', e);
                   }
                   setSubmitting(false);
@@ -688,14 +688,14 @@ const ProjectSettingsPage = () => {
               toast.success('Token deleted.');
             } catch (e) {
               console.error(e);
-              toast.error('Error deleting token.');
+              toast.error('Error deleting token');
             } finally {
               setLoading(false);
             }
           }}
         />
       </Dialog.Root>
-    </ProjectSettingsLayout>
+    </ProjectLayout>
   );
 };
 

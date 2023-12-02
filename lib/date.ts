@@ -38,20 +38,39 @@ export const getHistogramBinSize = (dateRange: DateRange) => {
   }
 };
 
-export const formatShortDateTimeInTimeZone = (date: Date) => {
+export const formatShortDateTimeInTimeZone = (
+  date: Date,
+  fixedSize?: boolean,
+) => {
   // Short date and time
   // Jun 12, 8:20 PM
   // Jun 12 2022, 8:20 PM
   return formatInTimeZone(
     date,
     REFERENCE_TIMEZONE,
-    `MMM d${date.getFullYear() !== now.getFullYear() ? ', yyyy' : ''}, h:mm a`,
+    `MMM d${date.getFullYear() !== now.getFullYear() ? ', yyyy' : ''}, ${
+      fixedSize ? 'hh' : 'h'
+    }:mm a`,
   );
 };
 
-export const formatSystemDateTime = (date: Date) => {
-  // Jun 12, 8:20 PM
-  return formatInTimeZone(date, REFERENCE_TIMEZONE, `MMM d, yyyy, h:mm a`);
+export const formatShortTimeInTimeZone = (date: Date, fixedSize?: boolean) => {
+  // Short date and time
+  // 08:20 PM
+  return formatInTimeZone(
+    date,
+    REFERENCE_TIMEZONE,
+    `${fixedSize ? 'hh' : 'h'}:mm a`,
+  );
+};
+
+export const formatSystemDateTime = (date: Date, fixedSize?: boolean) => {
+  // Jun 12, 08:20 PM
+  return formatInTimeZone(
+    date,
+    REFERENCE_TIMEZONE,
+    `MMM d, yyyy, ${fixedSize ? 'hh' : 'h'}:mm a`,
+  );
 };
 
 export enum FixedDateRange {

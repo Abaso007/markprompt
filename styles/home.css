@@ -1,0 +1,146 @@
+.home-gradient-text {
+  /* This fixes right clipped gradient */
+  /* padding: 0 4px; */
+  background-color: #f59e0b;
+  background-image: linear-gradient(45deg, #bae6fd, #d9f99d);
+  background-size: 100%;
+  -webkit-background-clip: text;
+  -moz-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -moz-text-fill-color: transparent;
+}
+
+.home-dots {
+  background-image: radial-gradient(#ffffff25 6%, transparent 6%);
+  background-color: transparent;
+  background-position: 0 0, 1px 1px;
+  background-size: 12px 12px;
+}
+
+.home-with-ring {
+  @apply outline-none ring-sky-500 transition focus:ring;
+}
+
+.home-ghost-button {
+  @apply whitespace-nowrap rounded-md border-0 bg-transparent px-2 py-2 text-sm text-neutral-500 outline-none ring-sky-500 transition duration-300 hover:bg-neutral-900 hover:text-white focus:ring data-[highlighted=true]:bg-white data-[highlighted=true]:font-medium data-[highlighted=true]:text-neutral-900 hover:data-[highlighted=true]:bg-white/80 sm:px-3;
+}
+
+.home-icon-button {
+  @apply rounded-md p-2 text-neutral-500 outline-none ring-sky-500 transition hover:bg-neutral-900 hover:text-white focus:text-white focus:ring;
+}
+
+.home-button-ring {
+  @apply transition duration-200 focus:outline-none focus:ring focus:ring-sky-500;
+}
+
+.home-animate-overlay {
+  transition-timing-function: cubic-bezier(0.25, 0.4, 0.55, 1.4);
+  animation-fill-mode: both;
+}
+
+.home-animate-overlay[data-state='open'] {
+  animation-duration: 300ms;
+  animation-name: opacity;
+}
+
+.home-animate-overlay[data-state='closed'] {
+  animation-duration: 400ms;
+  animation-name: opacity-reverse;
+}
+
+@keyframes opacity {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes opacity-reverse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.home-dialog-content {
+  @apply fixed top-[50%] left-[50%] z-40 translate-x-[-50%] translate-y-[-50%] overflow-y-auto rounded-lg border border-neutral-900 bg-neutral-1200 antialiased shadow-2xl;
+}
+
+.home-animate-dialog-slide-in {
+  transition-timing-function: cubic-bezier(0.25, 0.4, 0.55, 1.4);
+  animation-fill-mode: both;
+}
+
+.home-animate-dialog-slide-in[data-state='open'] {
+  animation-duration: 300ms;
+  animation-name: dialog-slide-in;
+}
+
+.home-animate-dialog-slide-in[data-state='closed'] {
+  animation-duration: 400ms;
+  animation-name: dialog-slide-in-reverse;
+}
+
+@keyframes dialog-slide-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes dialog-slide-in-reverse {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+}
+
+.home-form input:autofill,
+.home-form input:-webkit-autofill {
+  @apply border-sky-500 !important;
+}
+
+.home-form label {
+  @apply mt-2 text-xs font-medium text-neutral-300;
+}
+
+.home-form input,
+.home-form textarea {
+  @apply rounded-md border bg-neutral-900 px-2 py-2 text-sm text-neutral-300 outline-none ring-sky-500 transition duration-300 placeholder:text-neutral-500 focus:ring-2 !important;
+}
+
+.home-form input:not([data-error]),
+.home-form textarea:not([data-error]) {
+  @apply border-neutral-800;
+}
+
+.home-form input[data-error],
+.home-form textarea[data-error] {
+  @apply border-rose-900 focus:border-neutral-800;
+}
+
+.home-form input[type='radio'] {
+  @apply h-[14px] w-[14px] rounded-full border border-neutral-800 text-sky-500 transition focus:border-sky-500 focus:bg-sky-500 focus:ring focus:ring-sky-200 focus:ring-opacity-50 focus:ring-offset-0 !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  -o-appearance: none;
+  appearance: none;
+  outline: none;
+  cursor: pointer;
+}
+
+.home-border-button {
+  @apply rounded-md border border-neutral-800 bg-neutral-900 px-2 py-2 text-sm font-medium text-neutral-300 outline-none ring-sky-500 transition duration-300 hover:border-neutral-700 hover:bg-neutral-800 hover:text-white focus:ring sm:px-3;
+}

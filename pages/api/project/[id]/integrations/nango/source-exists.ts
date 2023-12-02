@@ -24,9 +24,9 @@ export default withProjectAccess(
       const { data } = await supabase
         .from('sources')
         .select('id')
-        .eq('project_id', req.query.id)
+        .eq('project_id', req.query.id!)
         .eq('type', 'nango')
-        .eq('data->identifier', req.query.identifier);
+        .eq('data->identifier', req.body.identifier!);
 
       return res.status(200).json({ exists: !!data });
     }

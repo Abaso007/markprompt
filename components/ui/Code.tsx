@@ -6,12 +6,14 @@ export type CodeProps = {
   language: Language;
   className?: string;
   noPreWrap?: boolean;
+  showLineNumbers?: boolean;
 };
 
 export const Code: FC<CodeProps> = ({
   code,
   language,
   noPreWrap,
+  showLineNumbers,
   className: _className,
 }) => {
   return (
@@ -25,6 +27,9 @@ export const Code: FC<CodeProps> = ({
           >
             {tokens.map((line, i) => (
               <div key={`code-line-${i}`} {...getLineProps({ line, key: i })}>
+                {showLineNumbers && (
+                  <span className="inline-block w-6">{i + 1}</span>
+                )}
                 {line.map((token, key) => (
                   <span
                     key={`code-line-${i}-${key}`}

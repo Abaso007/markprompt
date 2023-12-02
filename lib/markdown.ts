@@ -12,7 +12,13 @@ import { filter } from 'unist-util-filter';
 
 import { inferFileTitle } from '@/lib/utils';
 import { extractFrontmatter } from '@/lib/utils.non-edge';
-import { FileSectionData, FileSectionsData, FileType } from '@/types/types';
+import {
+  FileSectionData,
+  FileSectionsData,
+  FileType,
+  MarkdownProcessorOptions,
+  MarkpromptConfig,
+} from '@/types/types';
 
 import { htmlToMarkdown } from './converters/html-to-markdown';
 import { markdocToMarkdown } from './converters/markdoc-to-markdown';
@@ -20,7 +26,6 @@ import { rstToMarkdown } from './converters/rst-to-markdown';
 import { splitWithinTokenCutoff } from './generate-embeddings';
 import { remarkImageSourceRewrite } from './remark/remark-image-source-rewrite';
 import { remarkLinkRewrite } from './remark/remark-link-rewrite';
-import { MarkdownProcessorOptions, MarkpromptConfig } from './schema';
 
 const toMarkdownOptions = {
   fences: true,
@@ -403,7 +408,9 @@ export const extractMeta = (
       return extractFrontmatter(content);
     case 'html': {
       const $ = load(content);
-      const title = $('title').text()?.trim();
+      // HTML pages can have multiple <title> nodes, pick the
+      // first one.
+      const title = $('title').first()?.text()?.trim();
       return { title };
     }
   }

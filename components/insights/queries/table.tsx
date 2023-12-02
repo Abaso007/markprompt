@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/Table';
 import { REFERENCE_TIMEZONE } from '@/lib/date';
 import emitter, { EVENT_OPEN_PLAN_PICKER_DIALOG } from '@/lib/events';
+import { formatTimezone } from '@/lib/utils.nodeps';
 
 interface QueriesDataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -262,7 +263,7 @@ export function QueriesDataTable<TData, TValue>({
             are generated once a day. Sensitive information is redacted.
           </div> */}
           <div className="flex-1 text-xs text-neutral-500">
-            Dates are shown in {REFERENCE_TIMEZONE} time.
+            Dates are shown in {formatTimezone(REFERENCE_TIMEZONE)} time.
           </div>
         </div>
       </div>

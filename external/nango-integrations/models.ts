@@ -5,6 +5,7 @@ export interface NangoFile {
   content: string | undefined;
   contentType: string | undefined;
   meta: object | undefined;
+  lastModified: Date | undefined;
   error: string | undefined;
 }
 type LogLevel = 'info' | 'debug' | 'error' | 'warn' | 'http' | 'verbose' | 'silly';
@@ -71,12 +72,13 @@ export interface ProxyConfiguration {
     connectionId?: string;
     method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE' | 'get' | 'post' | 'patch' | 'put' | 'delete';
     headers?: Record<string, string>;
-    params?: string | Record<string, string>;
+    params?: string | Record<string, string | number>;
     paramsSerializer?: ParamsSerializerOptions;
     data?: unknown;
     retries?: number;
     baseUrlOverride?: string;
     paginate?: Partial<CursorPagination> | Partial<LinkPagination> | Partial<OffsetPagination>;
+    responseType?: 'arraybuffer' | 'blob' | 'document' | 'json' | 'text' | 'stream';
 }
 declare enum AuthModes {
     OAuth1 = "OAUTH1",
@@ -171,6 +173,7 @@ export declare class NangoAction {
     proxy<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>>;
     get<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>>;
     post<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>>;
+    put<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>>;
     patch<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>>;
     delete<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>>;
     getConnection(): Promise<Connection>;
@@ -211,9 +214,9 @@ export const NangoFlows = [
     "syncs": [
       {
         "name": "salesforce-knowledge",
-        "type": "sync",
         "runs": "every week",
         "track_deletes": false,
+        "type": "sync",
         "auto_start": false,
         "attributes": {},
         "returns": [
@@ -248,6 +251,10 @@ export const NangoFlows = [
                 "type": "object | undefined"
               },
               {
+                "name": "lastModified",
+                "type": "date | undefined"
+              },
+              {
                 "name": "error",
                 "type": "string | undefined"
               }
@@ -255,7 +262,8 @@ export const NangoFlows = [
           }
         ],
         "description": "",
-        "scopes": []
+        "scopes": [],
+        "endpoints": []
       }
     ],
     "actions": []
@@ -265,9 +273,9 @@ export const NangoFlows = [
     "syncs": [
       {
         "name": "salesforce-knowledge-sandbox",
-        "type": "sync",
         "runs": "every week",
         "track_deletes": true,
+        "type": "sync",
         "auto_start": false,
         "attributes": {},
         "returns": [
@@ -302,6 +310,10 @@ export const NangoFlows = [
                 "type": "object | undefined"
               },
               {
+                "name": "lastModified",
+                "type": "date | undefined"
+              },
+              {
                 "name": "error",
                 "type": "string | undefined"
               }
@@ -309,7 +321,8 @@ export const NangoFlows = [
           }
         ],
         "description": "",
-        "scopes": []
+        "scopes": [],
+        "endpoints": []
       }
     ],
     "actions": []
@@ -319,9 +332,9 @@ export const NangoFlows = [
     "syncs": [
       {
         "name": "salesforce-case",
-        "type": "sync",
         "runs": "every week",
         "track_deletes": true,
+        "type": "sync",
         "auto_start": false,
         "attributes": {},
         "returns": [
@@ -356,6 +369,10 @@ export const NangoFlows = [
                 "type": "object | undefined"
               },
               {
+                "name": "lastModified",
+                "type": "date | undefined"
+              },
+              {
                 "name": "error",
                 "type": "string | undefined"
               }
@@ -363,7 +380,8 @@ export const NangoFlows = [
           }
         ],
         "description": "",
-        "scopes": []
+        "scopes": [],
+        "endpoints": []
       }
     ],
     "actions": []
@@ -373,9 +391,9 @@ export const NangoFlows = [
     "syncs": [
       {
         "name": "salesforce-case-sandbox",
-        "type": "sync",
         "runs": "every week",
         "track_deletes": true,
+        "type": "sync",
         "auto_start": false,
         "attributes": {},
         "returns": [
@@ -410,6 +428,10 @@ export const NangoFlows = [
                 "type": "object | undefined"
               },
               {
+                "name": "lastModified",
+                "type": "date | undefined"
+              },
+              {
                 "name": "error",
                 "type": "string | undefined"
               }
@@ -417,7 +439,8 @@ export const NangoFlows = [
           }
         ],
         "description": "",
-        "scopes": []
+        "scopes": [],
+        "endpoints": []
       }
     ],
     "actions": []
@@ -427,9 +450,9 @@ export const NangoFlows = [
     "syncs": [
       {
         "name": "notion-pages",
-        "type": "sync",
         "runs": "every week",
         "track_deletes": true,
+        "type": "sync",
         "auto_start": false,
         "attributes": {},
         "returns": [
@@ -464,6 +487,10 @@ export const NangoFlows = [
                 "type": "object | undefined"
               },
               {
+                "name": "lastModified",
+                "type": "date | undefined"
+              },
+              {
                 "name": "error",
                 "type": "string | undefined"
               }
@@ -471,7 +498,8 @@ export const NangoFlows = [
           }
         ],
         "description": "",
-        "scopes": []
+        "scopes": [],
+        "endpoints": []
       }
     ],
     "actions": []
@@ -481,9 +509,9 @@ export const NangoFlows = [
     "syncs": [
       {
         "name": "website-pages",
-        "type": "sync",
         "runs": "every week",
         "track_deletes": true,
+        "type": "sync",
         "auto_start": false,
         "attributes": {},
         "returns": [
@@ -518,6 +546,10 @@ export const NangoFlows = [
                 "type": "object | undefined"
               },
               {
+                "name": "lastModified",
+                "type": "date | undefined"
+              },
+              {
                 "name": "error",
                 "type": "string | undefined"
               }
@@ -525,7 +557,67 @@ export const NangoFlows = [
           }
         ],
         "description": "",
-        "scopes": []
+        "scopes": [],
+        "endpoints": []
+      }
+    ],
+    "actions": []
+  },
+  {
+    "providerConfigKey": "github-repo",
+    "syncs": [
+      {
+        "name": "github-repo",
+        "runs": "every week",
+        "track_deletes": false,
+        "type": "sync",
+        "auto_start": false,
+        "attributes": {},
+        "returns": [
+          "NangoFile"
+        ],
+        "models": [
+          {
+            "name": "NangoFile",
+            "fields": [
+              {
+                "name": "id",
+                "type": "string"
+              },
+              {
+                "name": "path",
+                "type": "string"
+              },
+              {
+                "name": "title",
+                "type": "string | undefined"
+              },
+              {
+                "name": "content",
+                "type": "string | undefined"
+              },
+              {
+                "name": "contentType",
+                "type": "string | undefined"
+              },
+              {
+                "name": "meta",
+                "type": "object | undefined"
+              },
+              {
+                "name": "lastModified",
+                "type": "date | undefined"
+              },
+              {
+                "name": "error",
+                "type": "string | undefined"
+              }
+            ]
+          }
+        ],
+        "description": "",
+        "scopes": [],
+        "endpoints": []
       }
     ],
     "actions": []

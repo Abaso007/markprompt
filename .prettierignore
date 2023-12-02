@@ -4,3 +4,4 @@ node_modules/
 coverage/
 external/nango-integrations/models.ts
 external/nango-integrations/dist/
+components/pages/sections/home/wave/shaders/

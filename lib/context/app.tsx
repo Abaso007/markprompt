@@ -70,13 +70,18 @@ const AppContextProvider = (props: PropsWithChildren) => {
       }
     };
 
-    toast.promise(setupUser, {
-      loading: 'Setting up your account...',
-      success: () => {
-        return 'Account has been set up. Redirecting you to your starter project.';
-      },
-      error: 'Error setting up your account',
-    });
+    (async () => {
+      const tid = toast.loading('Setting up your account...');
+      try {
+        await setupUser();
+        toast.success(
+          'Account has been set up. Redirecting you to your starter project.',
+          { id: tid },
+        );
+      } catch {
+        toast.error('Setting up your account...', { id: tid });
+      }
+    })();
   }, [
     teams,
     team,

@@ -1,6 +1,9 @@
 import '@/styles/globals.css';
 
-import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs';
+import {
+  Session,
+  createBrowserSupabaseClient,
+} from '@supabase/auth-helpers-nextjs';
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
 import { Analytics } from '@vercel/analytics/react';
 import { NextComponentType, NextPageContext } from 'next';
@@ -18,6 +21,7 @@ import { ManagedTrainingContext } from '@/lib/context/training';
 const inter = Inter({ subsets: ['latin'] });
 
 interface CustomAppProps<P = any> extends AppProps<P> {
+  initialSession: Session;
   Component: NextComponentType<NextPageContext, any, P> & {
     getLayout?: (page: ReactNode) => JSX.Element;
     title?: string;
@@ -37,7 +41,7 @@ export default function App({ Component, pageProps }: CustomAppProps) {
         <ThemeProvider defaultTheme="dark" attribute="class">
           <SessionContextProvider
             supabaseClient={supabase}
-            initialSession={(pageProps as any).initialSession}
+            initialSession={pageProps.initialSession}
           >
             <ManagedAppContext>
               <ManagedTrainingContext>

@@ -64,12 +64,16 @@ TableFooter.displayName = 'TableFooter';
 
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
-  React.HTMLAttributes<HTMLTableRowElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLTableRowElement> & { light?: boolean }
+>(({ className, light, ...props }, ref) => (
   <tr
     ref={ref}
     className={cn(
-      'group border-b border-neutral-900 transition-colors data-[state=selected]:bg-neutral-1000',
+      'group border-b transition-colors data-[state=selected]:bg-neutral-1000',
+      {
+        'border-neutral-900': !light,
+        'border-neutral-200': light,
+      },
       className,
     )}
     {...props}
@@ -79,12 +83,16 @@ TableRow.displayName = 'TableRow';
 
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
-  React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
+  React.ThHTMLAttributes<HTMLTableCellElement> & { light?: boolean }
+>(({ className, light, ...props }, ref) => (
   <th
     ref={ref}
     className={cn(
-      'text-muted-foreground py-2 px-4 text-left align-middle font-medium [&:has([role=checkbox])]:pr-0',
+      'py-2 px-4 text-left align-middle font-medium [&:has([role=checkbox])]:pr-0',
+      {
+        'text-muted-foreground': !light,
+        'text-neutral-500': light,
+      },
       className,
     )}
     {...props}

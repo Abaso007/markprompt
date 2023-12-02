@@ -26,12 +26,14 @@ import { addSchemaRemoveTrailingSlashAndHash } from '@/lib/utils';
 import { guessShortNameFromTitle } from '@/lib/utils.nodeps';
 import { DbSource, Project } from '@/types/types';
 
-import { SyncStep, addSourceAndNangoConnection } from './shared';
+import {
+  SyncStep,
+  addSourceAndNangoConnection,
+  isIntegrationAuthed,
+} from './shared';
 import { Step, ConnectSourceStepState } from './Step';
 import { WebsitePagesSettings } from '../settings-panes/WebsitePages';
 import SourceDialog from '../SourceDialog';
-
-const nango = getNangoClientInstance();
 
 const ConnectStep = ({
   projectId,
@@ -57,12 +59,12 @@ const ConnectStep = ({
         onSubmit={async (values, { setSubmitting, setErrors }) => {
           setSubmitting(true);
 
-          let url = addSchemaRemoveTrailingSlashAndHash(values.url);
+          let url = addSchemaRemoveTrailingSlashAndHash(values.url.trim());
 
           let content = await fetchPageContent(url, false, true);
 
           if (!content) {
-            // Check with http:// instea of https://
+            // Check with http:// instead of https://
             url = addSchemaRemoveTrailingSlashAndHash(values.url, true);
             content = await fetchPageContent(url, false, true);
           }
@@ -83,6 +85,8 @@ const ConnectStep = ({
             pageTitle && guessShortNameFromTitle(pageTitle);
           const name = generateUniqueName(integrationId, guessedNameFromTitle);
 
+          const nango = getNangoClientInstance();
+
           const newSource = await addSourceAndNangoConnection(
             nango,
             projectId,
@@ -90,7 +94,7 @@ const ConnectStep = ({
             name,
             undefined,
             { baseUrl: url },
-            false,
+            isIntegrationAuthed(integrationId),
           );
 
           if (!newSource) {

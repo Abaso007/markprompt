@@ -11,7 +11,6 @@ import {
   useState,
 } from 'react';
 import { toast } from 'sonner';
-import colors from 'tailwindcss/colors';
 import { isPresent } from 'ts-is-present';
 
 import {
@@ -24,14 +23,9 @@ import {
 } from '@/types/types';
 
 import { processFile } from '../api';
-import emitter, { EVENT_OPEN_PLAN_PICKER_DIALOG } from '../events';
 import useProject from '../hooks/use-project';
 import useSources from '../hooks/use-sources';
 import useTeam from '../hooks/use-team';
-import {
-  getGitHubFiles,
-  getMarkpromptPathFromGitHubArchivePath,
-} from '../integrations/github';
 import {
   getMotifFileContent,
   getMotifPublicFileMetadata,
@@ -48,14 +42,13 @@ import {
   createChecksum,
   getGitHubOwnerRepoString,
   isHrefFromBaseUrl,
-  pluralize,
   removeTrailingSlashQueryParamsAndHash,
   shouldIncludeFileWithPath,
   toNormalizedOrigin,
   toNormalizedUrl,
   truncate,
 } from '../utils';
-import { getNameFromUrlOrPath } from '../utils.nodeps';
+import { getNameFromUrlOrPath, pluralize } from '../utils.nodeps';
 
 type IdleState = { state: 'idle' };
 type FetchingDataState = { state: 'fetching_data' };
@@ -351,41 +344,6 @@ const TrainingContextProvider = (props: PropsWithChildren) => {
       onError: (message: string) => void,
     ) => {
       switch (source.type) {
-        case 'github': {
-          const data = source.data as GitHubSourceDataType;
-          try {
-            console.info('Fetching GitHub archive for', data.url);
-            const fileData = await getGitHubFiles(
-              data.url,
-              data.branch,
-              config.include || [],
-              config.exclude || [],
-              onMessage,
-            );
-            console.info(
-              `Done fetching GitHub archive. Now processing ${fileData.length} files...`,
-            );
-
-            await generateEmbeddings(
-              source.id,
-              'github',
-              fileData.length,
-              forceRetrain,
-              (i) => getMarkpromptPathFromGitHubArchivePath(fileData[i].path),
-              async (i) => {
-                const name = fileData[i].name;
-                const content = fileData[i].content;
-                return { name, content };
-              },
-              onFileProcessed,
-            );
-          } catch (e) {
-            const ownerAndRepo = getGitHubOwnerRepoString(data.url);
-            onError(`Error processing repo ${ownerAndRepo}: ${e}`);
-            break;
-          }
-          break;
-        }
         // case 'nango': {
         //   if (!project?.id) {
         //     break;

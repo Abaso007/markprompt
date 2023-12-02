@@ -3,20 +3,7 @@ import { isPresent } from 'ts-is-present';
 
 import { RobotsTxtInfo } from '@/types/types';
 
-import { MarkdownProcessorOptions } from '../schema';
 import { removeTrailingSlashQueryParamsAndHash } from '../utils';
-
-export type RequestHeader = { key: string; value: string };
-
-export type WebsitePagesSyncMetadata = {
-  baseUrl: string;
-  includeRegexes?: string[];
-  excludeRegexes?: string[];
-  requestHeaders?: RequestHeader[];
-  includeSelectors?: string;
-  excludeSelectors?: string;
-  processorOptions?: MarkdownProcessorOptions;
-};
 
 export const fetchRobotsTxtInfo = async (
   baseUrl: string,

@@ -9,7 +9,7 @@ import { PromptStatusTag } from '@/components/insights/PromptStatusTag';
 import { QueriesDataTable } from '@/components/insights/queries/table';
 import { QueriesHistogram } from '@/components/insights/queries-histogram';
 import { TopReferences } from '@/components/insights/top-references';
-import { ProjectSettingsLayout } from '@/components/layouts/ProjectSettingsLayout';
+import { ProjectLayout } from '@/components/layouts/ProjectLayout';
 import Button from '@/components/ui/Button';
 import { DateRangePicker } from '@/components/ui/DateRangePicker';
 import {
@@ -24,7 +24,7 @@ import useInsights from '@/lib/hooks/use-insights';
 import useProject from '@/lib/hooks/use-project';
 import useTeam from '@/lib/hooks/use-team';
 import { canViewInsights, getAccessibleInsightsType } from '@/lib/stripe/tiers';
-import { pluralize } from '@/lib/utils';
+import { pluralize } from '@/lib/utils.nodeps';
 import { useDebouncedState } from '@/lib/utils.react';
 import { DbConversation, DbQueryStat, PromptQueryStat } from '@/types/types';
 
@@ -325,7 +325,7 @@ const Insights = () => {
   }, [project?.id, setProcessingQueryStats, team, mutateQueries]);
 
   return (
-    <ProjectSettingsLayout
+    <ProjectLayout
       title="Insights"
       titleComponent={
         <div className="flex items-center">
@@ -568,7 +568,7 @@ const Insights = () => {
         open={queryStatDialogOpen}
         setOpen={setQueryStatDialogOpen}
       />
-    </ProjectSettingsLayout>
+    </ProjectLayout>
   );
 };
 

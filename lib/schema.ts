@@ -1,18 +1,6 @@
 import Ajv, { JTDSchemaType } from 'ajv/dist/jtd';
 
-import { RemarkImageSourceRewriteOptions } from './remark/remark-image-source-rewrite';
-import { RemarkLinkRewriteOptions } from './remark/remark-link-rewrite';
-
-export type MarkdownProcessorOptions = {
-  imageSourceRewrite?: RemarkImageSourceRewriteOptions;
-  linkRewrite?: RemarkLinkRewriteOptions;
-};
-
-export type MarkpromptConfig = {
-  include?: string[];
-  exclude?: string[];
-  processorOptions?: MarkdownProcessorOptions;
-};
+import { MarkdownProcessorOptions, MarkpromptConfig } from '@/types/types';
 
 export const MARKPROMPT_CONFIG_SCHEMA: JTDSchemaType<MarkpromptConfig> = {
   optionalProperties: {

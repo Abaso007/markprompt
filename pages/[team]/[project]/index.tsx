@@ -1,7 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
-  SortingState,
   createColumnHelper,
   flexRender,
   getCoreRowModel,
@@ -30,27 +29,27 @@ import { toast } from 'sonner';
 import { isPresent } from 'ts-is-present';
 
 import { UpgradeNote } from '@/components/files/UpgradeNote';
-import { ProjectSettingsLayout } from '@/components/layouts/ProjectSettingsLayout';
+import { ProjectLayout } from '@/components/layouts/ProjectLayout';
 import Button from '@/components/ui/Button';
 import { IndeterminateCheckbox } from '@/components/ui/Checkbox';
+import { MultiSelectFilterButton } from '@/components/ui/FilterButton';
 import { SkeletonTable } from '@/components/ui/Skeletons';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { deleteFiles } from '@/lib/api';
 import { formatShortDateTimeInTimeZone } from '@/lib/date';
 import useFiles from '@/lib/hooks/use-files';
 import useProject from '@/lib/hooks/use-project';
+import useSource from '@/lib/hooks/use-source';
 import useSources from '@/lib/hooks/use-sources';
 import useTeam from '@/lib/hooks/use-team';
 import useUsage from '@/lib/hooks/use-usage';
 import { getTier } from '@/lib/stripe/tiers';
 import {
+  canDeleteSource,
   getIconForSource,
   getLabelForSource,
-  getUrlPath,
-  isUrl,
-  pluralize,
 } from '@/lib/utils';
-import { getNameForPath } from '@/lib/utils.nodeps';
+import { pluralize } from '@/lib/utils.nodeps';
 import { getFileTitle } from '@/lib/utils.non-edge';
 import {
   DbFile,
@@ -75,12 +74,16 @@ const SalesforceDatabaseConfigurationDialog = dynamic(
   () => import('@/components/dialogs/sources/configuration/SalesforceDatabase'),
 );
 
+const WebsitePagesConfigurationDialog = dynamic(
+  () => import('@/components/dialogs/sources/configuration/WebsitePages'),
+);
+
 const NotionPagesConfigurationDialog = dynamic(
   () => import('@/components/dialogs/sources/configuration/NotionPages'),
 );
 
-const WebsitePagesConfigurationDialog = dynamic(
-  () => import('@/components/dialogs/sources/configuration/WebsitePages'),
+const GitHubRepoConfigurationDialog = dynamic(
+  () => import('@/components/dialogs/sources/configuration/GitHubRepo'),
 );
 
 const EditorDialog = dynamic(() => import('@/components/files/EditorDialog'), {
@@ -97,27 +100,6 @@ const DeleteSourceDialog = dynamic(
     loading: () => Loading,
   },
 );
-
-const FileDnd = dynamic(() => import('@/components/files/FileDnd'), {
-  loading: () => Loading,
-});
-
-const getBasePath = (pathWithFile: string) => {
-  if (isUrl(pathWithFile)) {
-    return getUrlPath(pathWithFile);
-  }
-
-  if (!pathWithFile.includes('/')) {
-    return '/';
-  }
-
-  const parts = pathWithFile.split('/');
-  if (parts.length <= 2 && pathWithFile.startsWith('/')) {
-    return '/';
-  } else {
-    return parts.slice(0, -1).join('/').replace(/^\//, '');
-  }
-};
 
 type SyncStatusIndicatorProps = {
   syncQueue?: DbSyncQueueOverview;
@@ -156,13 +138,11 @@ const SyncStatusIndicator: FC<SyncStatusIndicatorProps> = ({ syncQueue }) => {
       );
     }
     default:
-      // TODO: reenable when migration to new architecture is fully completed
-      return <></>;
-    // return (
-    //   <Tooltip as="span" message="The source has not yet been synced">
-    //     <AlertTriangle className="h-4 w-4 text-orange-600" />
-    //   </Tooltip>
-    // );
+      return (
+        <Tooltip as="span" message="The source has not yet been synced">
+          <AlertTriangle className="h-4 w-4 text-orange-600" />
+        </Tooltip>
+      );
   }
 };
 
@@ -224,24 +204,35 @@ const SourceItem: FC<SourceItemProps> = ({
   onConfigureSelected,
   onDeleteSelected,
 }) => {
+  const { currentStatus, stopSync } = useSource(source);
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const Icon = getIconForSource(source);
+  const canConfigure = source.type === 'nango';
+  const canSync = source.type === 'nango';
 
   return (
     <div
       className={cn(
-        'flex gap-2 rounded-md px-2 text-sm outline-none transition hover:bg-neutral-900',
+        'flex gap-2 rounded-md px-2 text-sm outline-none transition',
         {
           'bg-neutral-1000': isDropdownOpen,
+          'hover:bg-neutral-900': canConfigure,
         },
       )}
     >
       <button
         className={cn(
-          'flex flex-grow cursor-pointer flex-row items-center gap-2 overflow-hidden py-1.5 text-sm outline-none',
-          { 'bg-neutral-1000': isDropdownOpen },
+          'flex flex-grow flex-row items-center gap-2 overflow-hidden py-1.5 text-sm outline-none',
+          {
+            'bg-neutral-1000': isDropdownOpen,
+            'cursor-pointer': canConfigure,
+            'cursor-default': !canConfigure,
+          },
         )}
         onClick={() => {
+          if (!canConfigure) {
+            return;
+          }
           onConfigureSelected('configuration');
         }}
       >
@@ -249,13 +240,11 @@ const SourceItem: FC<SourceItemProps> = ({
         <p className="flex-grow overflow-hidden truncate text-left text-neutral-100">
           {getLabelForSource(source, false)}
         </p>
-        {/* While we wait for proper sync status endpoints, we only show the
-        sync status when it is running (on Inngest), so that users are not
-        confused e.g. with a 'complete' indicator when we don't know what is
-        going on on the Nango end. */}
-        {/* {syncQueue?.status === 'running' && ( */}
-        <SyncStatusIndicator syncQueue={syncQueue} />
-        {/* )} */}
+        {canSync && (
+          <div className="flex-none">
+            <SyncStatusIndicator syncQueue={syncQueue} />
+          </div>
+        )}
       </button>
       <DropdownMenu.Root open={isDropdownOpen} onOpenChange={setDropdownOpen}>
         <DropdownMenu.Trigger asChild>
@@ -277,34 +266,54 @@ const SourceItem: FC<SourceItemProps> = ({
             className="animate-menu-up dropdown-menu-content mr-2 min-w-[160px]"
             sideOffset={5}
           >
-            <DropdownMenu.Item asChild onSelect={() => onSyncSelected()}>
-              <span className="dropdown-menu-item dropdown-menu-item-noindent block">
-                Sync now
-              </span>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              asChild
-              onSelect={() => {
-                setDropdownOpen(false);
-                onConfigureSelected('configuration');
-              }}
-            >
-              <span className="dropdown-menu-item dropdown-menu-item-noindent block">
-                Configure
-              </span>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              asChild
-              onSelect={() => {
-                setDropdownOpen(false);
-                onConfigureSelected('logs');
-              }}
-            >
-              <span className="dropdown-menu-item dropdown-menu-item-noindent block">
-                Show logs
-              </span>
-            </DropdownMenu.Item>
-            <DropdownMenu.Separator className="dropdown-menu-separator" />
+            {canConfigure && (
+              <>
+                <DropdownMenu.Item
+                  disabled={currentStatus === 'running'}
+                  onSelect={() => onSyncSelected()}
+                  className={cn(
+                    'dropdown-menu-item dropdown-menu-item-noindent block',
+                  )}
+                >
+                  Sync now
+                </DropdownMenu.Item>
+                {currentStatus === 'running' && (
+                  <DropdownMenu.Item
+                    onSelect={async () => {
+                      await stopSync();
+                    }}
+                    className={cn(
+                      'dropdown-menu-item dropdown-menu-item-noindent block',
+                    )}
+                  >
+                    Stop syncing
+                  </DropdownMenu.Item>
+                )}
+                <DropdownMenu.Item
+                  asChild
+                  onSelect={() => {
+                    setDropdownOpen(false);
+                    onConfigureSelected('configuration');
+                  }}
+                >
+                  <span className="dropdown-menu-item dropdown-menu-item-noindent block">
+                    Configure
+                  </span>
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  asChild
+                  onSelect={() => {
+                    setDropdownOpen(false);
+                    onConfigureSelected('logs');
+                  }}
+                >
+                  <span className="dropdown-menu-item dropdown-menu-item-noindent block">
+                    Show logs
+                  </span>
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator className="dropdown-menu-separator" />
+              </>
+            )}
             <DropdownMenu.Item
               asChild
               onSelect={() => {
@@ -323,6 +332,19 @@ const SourceItem: FC<SourceItemProps> = ({
   );
 };
 
+const TableLoadingSkeleting = ({ padded }: { padded?: boolean }) => {
+  return (
+    <div
+      className={cn('relative mx-4 mt-8 min-h-[200px]', {
+        'md:mx-6': padded,
+        'md:mx-2': !padded,
+      })}
+    >
+      <SkeletonTable onDark loading />
+    </div>
+  );
+};
+
 const Data = () => {
   const { team } = useTeam();
   const { project } = useProject();
@@ -331,10 +353,17 @@ const Data = () => {
     mutate: mutateFiles,
     loading: loadingFiles,
     page,
+    pageSize,
     setPage,
     hasMorePages,
+    getSortOrder,
+    toggleSorting,
+    sourceIdsFilter,
+    setSourceIdsFilter,
     mutateCount,
+    mutateCountWithFilters,
     numFiles,
+    numFilesWithFilters,
   } = useFiles();
   const {
     sources,
@@ -353,9 +382,6 @@ const Data = () => {
   const [sourceToRemove, setSourceToRemove] = useState<DbSource | undefined>(
     undefined,
   );
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: 'updated', desc: true },
-  ]);
   const [openFileId, setOpenFileId] = useState<DbFile['id'] | undefined>(
     undefined,
   );
@@ -410,13 +436,12 @@ const Data = () => {
     token_count: number | undefined;
   }>();
 
-  // const pageHasSelectableItems = useMemo(() => {
-  //   return (paginatedFiles || []).some((f) => {
-  //     const source = sources.find((s) => s.id === f.source_id);
-  //     // return source && canDeleteSource(source.type);
-  //     return !!source;
-  //   });
-  // }, [paginatedFiles, sources]);
+  const pageHasSelectableItems = useMemo(() => {
+    return (paginatedFiles || []).some((f) => {
+      const source = sources.find((s) => s.id === f.source_id);
+      return source && canDeleteSource(source.type);
+    });
+  }, [paginatedFiles, sources]);
 
   const columns: any = useMemo(
     () => [
@@ -424,9 +449,9 @@ const Data = () => {
         id: 'select',
         enableSorting: false,
         header: ({ table }) => {
-          // if (!pageHasSelectableItems) {
-          //   return <></>;
-          // }
+          if (!pageHasSelectableItems) {
+            return <></>;
+          }
           return (
             <IndeterminateCheckbox
               checked={table.getIsAllRowsSelected()}
@@ -472,15 +497,15 @@ const Data = () => {
           );
         },
         footer: (info) => info.column.id,
-        sortingFn: (rowA, rowB, columnId) => {
-          const valueA: { sourceId: DbSource['id']; path: string } =
-            rowA.getValue(columnId);
-          const valueB: { sourceId: DbSource['id']; path: string } =
-            rowB.getValue(columnId);
-          const nameA = getNameForPath(sources, valueA.sourceId, valueA.path);
-          const nameB = getNameForPath(sources, valueB.sourceId, valueB.path);
-          return nameA.localeCompare(nameB);
-        },
+        // sortingFn: (rowA, rowB, columnId) => {
+        //   const valueA: { sourceId: DbSource['id']; path: string } =
+        //     rowA.getValue(columnId);
+        //   const valueB: { sourceId: DbSource['id']; path: string } =
+        //     rowB.getValue(columnId);
+        //   const nameA = getNameForPath(sources, valueA.sourceId, valueA.path);
+        //   const nameB = getNameForPath(sources, valueB.sourceId, valueB.path);
+        //   return nameA.localeCompare(nameB);
+        // },
       }),
       // columnHelper.accessor((row) => row.path, {
       //   id: 'path',
@@ -508,6 +533,7 @@ const Data = () => {
       columnHelper.accessor((row) => row.source_id, {
         id: 'source',
         header: () => <span>Source</span>,
+        enableSorting: false,
         cell: (info) => {
           const value = info.getValue();
           const source = sources.find((s) => s.id === value);
@@ -537,23 +563,23 @@ const Data = () => {
         footer: (info) => info.column.id,
       }),
     ],
-    // [columnHelper, pageHasSelectableItems, sources],
-    [columnHelper, sources],
+    [columnHelper, pageHasSelectableItems, sources],
   );
 
   const table = useReactTable({
     data: paginatedFiles || [],
     columns,
-    state: { rowSelection, sorting },
+    // state: { rowSelection, sorting },
+    state: { rowSelection },
     enableRowSelection: (row) => {
-      // const value = row.getValue('source');
-      // const source = sources.find((s) => s.id === value);
-      // if (source && !canDeleteSource(source.type)) {
-      //   return false;
-      // }
+      const value = row.getValue('source');
+      const source = sources.find((s) => s.id === value);
+      if (source && !canDeleteSource(source.type)) {
+        return false;
+      }
       return true;
     },
-    onSortingChange: setSorting,
+    // onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -561,61 +587,18 @@ const Data = () => {
   });
 
   const numSelected = Object.values(rowSelection).filter(Boolean).length;
-  const hasFiles = paginatedFiles && paginatedFiles.length > 0;
+  const hasPaginatedFiles = paginatedFiles && paginatedFiles.length > 0;
+  const projectHasFiles = numFiles > 0;
 
   return (
-    <ProjectSettingsLayout
-      title="Data"
-      width="2xl"
-      RightHeading={
-        <div className="flex w-full items-center gap-4">
-          <div className="flex-grow" />
-          {numSelected > 0 && (
-            <Dialog.Root>
-              <Dialog.Trigger asChild>
-                <Button loading={isDeleting} variant="danger" buttonSize="sm">
-                  Delete
-                </Button>
-              </Dialog.Trigger>
-              <ConfirmDialog
-                title={`Delete ${pluralize(numSelected, 'file', 'files')}?`}
-                description="Deleting a file will remove it as a source for future answers."
-                cta="Delete"
-                variant="danger"
-                loading={isDeleting}
-                onCTAClick={async () => {
-                  if (!project?.id) {
-                    return;
-                  }
-                  const selectedRowIndices = Object.keys(rowSelection);
-                  const rowModel = table.getSelectedRowModel().rowsById;
-                  const fileIds = selectedRowIndices
-                    .map((i) => rowModel[i]?.original?.id)
-                    .filter(isPresent);
-                  if (fileIds.length === 0) {
-                    return;
-                  }
-                  setIsDeleting(true);
-                  await deleteFiles(project.id, fileIds);
-                  await mutateFiles(
-                    paginatedFiles?.filter((f) => !fileIds.includes(f.id)),
-                  );
-                  await mutateFileStats();
-                  await mutateCount();
-                  setRowSelection([]);
-                  setIsDeleting(false);
-                  toast.success(
-                    `${pluralize(fileIds.length, 'file', 'files')} deleted`,
-                  );
-                }}
-              />
-            </Dialog.Root>
-          )}
-        </div>
-      }
-    >
-      <div className="grid grid-cols-1 gap-8 sm:grid-cols-12">
-        <div className="flex w-full flex-col gap-2 sm:col-span-3 md:col-span-2">
+    <ProjectLayout title="Data" noHeading noPadding width="2xl">
+      <div
+        className={cn(
+          'fixed inset-x-0 top-[98px] grid h-[calc(100vh-98px)] grid-cols-1 gap-4 sm:grid-cols-12 sm:gap-0',
+        )}
+      >
+        <div className="col-span-1 flex h-full w-full flex-col gap-2 overflow-y-auto px-4 pt-4 pb-1 sm:col-span-4 sm:pt-8 md:col-span-3 lg:col-span-2">
+          {/* <LayoutTitle title="Data" noPadding /> */}
           {!loadingFiles && !canAddMoreContent && (
             <UpgradeNote className="mb-4" showDialog>
               You have reached your quota of indexed content (
@@ -626,7 +609,7 @@ const Data = () => {
           {sources.length > 0 && (
             <>
               <p className="mb-2 text-xs text-neutral-500">Connected sources</p>
-              <div className="mb-8">
+              <div className="mb-2 sm:mb-8">
                 <Sources
                   projectId={project?.id}
                   onConfigureSelected={(source, view) => {
@@ -647,7 +630,6 @@ const Data = () => {
               </div>
             </>
           )}
-
           {project && (
             <SourcesDialog>
               <Button
@@ -664,146 +646,282 @@ const Data = () => {
             </SourcesDialog>
           )}
         </div>
-        <div className="sm:col-span-9 md:col-span-10">
-          {loadingFiles && (
-            <div className="relative min-h-[200px]">
-              <SkeletonTable onDark loading />
-            </div>
-          )}
-          {!loadingFiles && !hasFiles && (
-            <div className="flex h-[400px] flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-neutral-800 text-center">
-              {!loadingFiles &&
-              (!sources || sources.length === 0) &&
-              !hasFiles ? (
-                <>
-                  <p className="text-base font-semibold text-neutral-300">
-                    Start by connecting a source
-                  </p>
-                  <p className="max-w-[400px] text-sm text-neutral-500">
-                    <Balancer>
-                      Once you connect a source, you can start using it as
-                      context for your agents and chatbots.
-                    </Balancer>
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-base font-semibold text-neutral-300">
-                    Sync {sources.length > 1 ? 'sources' : 'source'}
-                  </p>
-                  <p className="mb-4 max-w-[400px] text-sm text-neutral-500">
-                    <Balancer>
-                      Once a source is synced, it will appear here and you can
-                      start using it as context for your agents and chatbots.
-                    </Balancer>
-                  </p>
-                  <Button
-                    variant="cta"
-                    buttonSize="sm"
-                    loading={isOneSourceSyncing}
-                    onClick={() => syncSources(sources)}
-                  >
-                    Sync now
-                  </Button>
-                </>
-              )}
-            </div>
-          )}
-          {!loadingFiles && hasFiles && (
-            <table className="w-full max-w-full table-fixed border-collapse">
-              <colgroup>
-                <col className="w-[32px]" />
-                <col className="w-[calc(80%-152px)]" />
-                {/* <col className="w-[30%]" /> */}
-                <col className="w-[20%]" />
-                <col className="w-[160px]" />
-              </colgroup>
-              <thead>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <th
-                          key={header.id}
-                          colSpan={header.colSpan}
-                          className="cursor-pointer py-2 px-2 text-left text-sm font-bold text-neutral-300"
-                          onClick={header.column.getToggleSortingHandler()}
-                        >
-                          {header.isPlaceholder ? null : (
-                            <div className="flex flex-row items-center gap-2">
-                              {flexRender(
-                                header.column.columnDef.header,
-                                header.getContext(),
-                              )}
-                              {header.id !== 'select' && (
-                                <>
-                                  <span className="text-sm font-normal text-neutral-600">
-                                    {{
-                                      asc: '↓',
-                                      desc: '↑',
-                                    }[header.column.getIsSorted() as string] ??
-                                      null}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </th>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {table.getRowModel().rows.map((row) => {
-                  return (
-                    <tr
-                      key={row.id}
-                      className={cn(
-                        'border-b border-neutral-900 hover:bg-neutral-1000',
-                        {
-                          'bg-neutral-1000': row.getIsSelected(),
-                        },
-                      )}
+        <div className="flex h-full flex-col overflow-hidden sm:col-span-8 md:col-span-9 lg:col-span-10">
+          {loadingFiles && !projectHasFiles && <TableLoadingSkeleting padded />}
+          {!loadingFiles && !projectHasFiles && (
+            <div className="mt-8 px-4 sm:px-6">
+              <div className="flex h-[400px] flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-neutral-800 text-center">
+                {!loadingFiles &&
+                (!sources || sources.length === 0) &&
+                !projectHasFiles ? (
+                  <>
+                    <p className="text-base font-semibold text-neutral-300">
+                      Start by connecting a source
+                    </p>
+                    <p className="max-w-[400px] text-sm text-neutral-500">
+                      <Balancer>
+                        Once you connect a source, you can start using it as
+                        context for your agents and chatbots.
+                      </Balancer>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-base font-semibold text-neutral-300">
+                      Sync {sources.length > 1 ? 'sources' : 'source'}
+                    </p>
+                    <p className="mb-4 max-w-[400px] text-sm text-neutral-500">
+                      <Balancer>
+                        Once a source is synced, it will appear here and you can
+                        start using it as context for your agents and chatbots.
+                      </Balancer>
+                    </p>
+                    <Button
+                      variant="cta"
+                      buttonSize="sm"
+                      loading={isOneSourceSyncing}
+                      onClick={() => syncSources(sources)}
                     >
-                      {row.getVisibleCells().map((cell) => {
+                      Sync now
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+          {projectHasFiles && (
+            <div className="flex h-full flex-grow flex-col overflow-hidden">
+              <div className="flex flex-none flex-row items-center gap-4 px-4 py-3 sm:pl-2 sm:pr-6">
+                <MultiSelectFilterButton
+                  legend="Source"
+                  title="Filter by source"
+                  plus={sourceIdsFilter.length - 1}
+                  activeLabel={(() => {
+                    if (sourceIdsFilter.length === 0) {
+                      return undefined;
+                    }
+                    const firstSource = sources.find(
+                      (s) => s.id === sourceIdsFilter[0],
+                    );
+                    if (!firstSource) {
+                      return undefined;
+                    }
+                    return getLabelForSource(firstSource, false);
+                  })()}
+                  options={sources.map((s) => getLabelForSource(s, false))}
+                  checkedIndices={sourceIdsFilter.map((id) =>
+                    sources.findIndex((s) => s.id === id),
+                  )}
+                  onSubmit={(indices) => {
+                    setSourceIdsFilter(
+                      indices.map((i) => sources[i]?.id).filter(isPresent),
+                    );
+                  }}
+                  onClear={() => {
+                    setSourceIdsFilter([]);
+                  }}
+                  align="start"
+                />
+                <div className="flex-grow" />
+                {numSelected > 0 && (
+                  <>
+                    <span className="flex-none whitespace-nowrap text-xs text-neutral-500">
+                      {pluralize(numSelected, 'file', 'files')} selected
+                    </span>
+                    <Dialog.Root>
+                      <Dialog.Trigger asChild>
+                        <Button
+                          className="flex-none"
+                          loading={isDeleting}
+                          variant="danger"
+                          buttonSize="xs"
+                        >
+                          Delete
+                        </Button>
+                      </Dialog.Trigger>
+                      <ConfirmDialog
+                        title={`Delete ${pluralize(
+                          numSelected,
+                          'file',
+                          'files',
+                        )}?`}
+                        description="Deleting a file will remove it as a source for future answers."
+                        cta="Delete"
+                        variant="danger"
+                        loading={isDeleting}
+                        onCTAClick={async () => {
+                          if (!project?.id) {
+                            return;
+                          }
+                          const selectedRowIndices = Object.keys(rowSelection);
+                          const rowModel = table.getSelectedRowModel().rowsById;
+                          const fileIds = selectedRowIndices
+                            .map((i) => rowModel[i]?.original?.id)
+                            .filter(isPresent);
+                          if (fileIds.length === 0) {
+                            return;
+                          }
+                          setIsDeleting(true);
+                          await deleteFiles(project.id, fileIds);
+                          await mutateFiles(
+                            paginatedFiles?.filter(
+                              (f) => !fileIds.includes(f.id),
+                            ),
+                          );
+                          await mutateFileStats();
+                          await mutateCount();
+                          await mutateCountWithFilters();
+                          setRowSelection([]);
+                          setIsDeleting(false);
+                          toast.success(
+                            `${pluralize(
+                              fileIds.length,
+                              'file',
+                              'files',
+                            )} deleted`,
+                          );
+                        }}
+                      />
+                    </Dialog.Root>
+                  </>
+                )}
+              </div>
+              <div className="h-full flex-grow overflow-y-auto px-4 sm:px-0">
+                {hasPaginatedFiles ? (
+                  <table className="w-full max-w-full flex-grow table-fixed border-collapse">
+                    <colgroup>
+                      <col
+                        className={cn({
+                          'w-[32px]': pageHasSelectableItems,
+                          'w-0': !pageHasSelectableItems,
+                        })}
+                      />
+                      <col className="w-[calc(80%-152px)]" />
+                      <col className="w-[20%]" />
+                      <col className="w-[160px]" />
+                    </colgroup>
+                    <thead className="sticky top-0">
+                      {table.getHeaderGroups().map((headerGroup) => (
+                        <tr key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => {
+                            return (
+                              <th
+                                key={header.id}
+                                colSpan={header.colSpan}
+                                className={cn(
+                                  'sticky top-0 bg-neutral-1100 py-2 px-2 text-left text-sm font-bold text-neutral-300',
+                                  {
+                                    'cursor-pointer':
+                                      header.column.getCanSort(),
+                                  },
+                                )}
+                                onClick={() => {
+                                  if (header.column.getCanSort()) {
+                                    toggleSorting(
+                                      header.id,
+                                      header.id === 'name' ? 'asc' : 'desc',
+                                    );
+                                  }
+                                }}
+                                // header.column.getToggleSortingHandler()}
+                              >
+                                {header.isPlaceholder ? null : (
+                                  <div className="flex flex-row  items-center gap-2">
+                                    {flexRender(
+                                      header.column.columnDef.header,
+                                      header.getContext(),
+                                    )}
+                                    {header.id !== 'select' && (
+                                      <>
+                                        <span className="text-sm font-normal text-neutral-600">
+                                          {(() => {
+                                            const sortOrder = getSortOrder(
+                                              header.id,
+                                            );
+                                            if (sortOrder === 'asc') {
+                                              return '↑';
+                                            } else if (sortOrder === 'desc') {
+                                              return '↓';
+                                            }
+                                            return '';
+                                          })()}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                                <div className="absolute inset-x-0 bottom-0 border-b border-neutral-900" />
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </thead>
+                    <tbody>
+                      {table.getRowModel().rows.map((row) => {
                         return (
-                          <td
-                            key={cell.id}
-                            style={{
-                              width: 100,
-                            }}
+                          <tr
+                            key={row.id}
                             className={cn(
-                              'overflow-hidden truncate text-ellipsis whitespace-nowrap py-2 px-2 text-sm',
+                              'border-b border-neutral-900 hover:bg-neutral-1000',
                               {
-                                'font-medium text-neutral-300':
-                                  cell.column.id === 'name',
-                                'text-neutral-500':
-                                  // cell.column.id === 'path' ||
-                                  cell.column.id === 'source' ||
-                                  cell.column.id === 'updated',
+                                'bg-neutral-1000': row.getIsSelected(),
                               },
                             )}
                           >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                          </td>
+                            {row.getVisibleCells().map((cell) => {
+                              return (
+                                <td
+                                  key={cell.id}
+                                  style={{
+                                    width: 100,
+                                  }}
+                                  className={cn(
+                                    'overflow-hidden truncate text-ellipsis whitespace-nowrap py-2 px-2 text-sm',
+                                    {
+                                      'font-medium text-neutral-300':
+                                        cell.column.id === 'name',
+                                      'text-neutral-500':
+                                        // cell.column.id === 'path' ||
+                                        cell.column.id === 'source' ||
+                                        cell.column.id === 'updated',
+                                    },
+                                  )}
+                                >
+                                  {flexRender(
+                                    cell.column.columnDef.cell,
+                                    cell.getContext(),
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
                         );
                       })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                    </tbody>
+                  </table>
+                ) : (
+                  <>
+                    {loadingFiles ? (
+                      <div className="sm:pr-4">
+                        <TableLoadingSkeleting />
+                      </div>
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-sm text-neutral-700">
+                        No results
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           )}
-          {paginatedFiles && paginatedFiles.length > 0 && (
-            <div className="flex flex-row items-center gap-2 py-4">
+          {projectHasFiles && (
+            <div className="flex flex-none flex-row items-center gap-2 border-t border-neutral-900 py-2 px-2">
               <Button
                 variant="plain"
                 buttonSize="xs"
-                onClick={() => setPage(page - 1)}
+                onClick={() => setPage((page || 0) - 1)}
                 disabled={page === 0 || loadingFiles}
               >
                 Previous
@@ -811,14 +929,18 @@ const Data = () => {
               <Button
                 variant="plain"
                 buttonSize="xs"
-                onClick={() => setPage(page + 1)}
+                onClick={() => setPage((page || 0) + 1)}
                 disabled={!hasMorePages || loadingFiles}
               >
                 Next
               </Button>
               <div className="flex-grow" />
-              {numFiles > 0 && (
-                <span className="flex-none whitespace-nowrap text-right text-xs text-neutral-500">{`${numFiles} files indexed`}</span>
+              {numFilesWithFilters > 0 && (
+                <span className="flex-none whitespace-nowrap pr-2 text-right text-xs text-neutral-500">
+                  Viewing {(page || 0) * pageSize + 1}–
+                  {Math.min(numFilesWithFilters, ((page || 0) + 1) * pageSize)}{' '}
+                  of {pluralize(numFilesWithFilters, 'result', 'results')}
+                </span>
               )}
             </div>
           )}
@@ -847,19 +969,16 @@ const Data = () => {
               }
             }}
           />
-          <SalesforceDatabaseConfigurationDialog
+          <WebsitePagesConfigurationDialog
             projectId={project?.id}
             open={
               configureSourceDialogOpen.open &&
-              (configureSourceDialogOpen?.dialogId === 'salesforce-knowledge' ||
-                configureSourceDialogOpen?.dialogId ===
-                  'salesforce-knowledge-sandbox' ||
-                configureSourceDialogOpen?.dialogId === 'salesforce-case' ||
-                configureSourceDialogOpen?.dialogId ===
-                  'salesforce-case-sandbox')
+              configureSourceDialogOpen?.dialogId === 'website-pages'
             }
             onOpenChange={(open) => {
               if (!open) {
+                // Do not set to undefined, as this will cause flicker when
+                // data in nulled and the fields in the dialog get reset.
                 setConfigureSourceDialogOpen((s) => ({ ...s, open: false }));
               }
             }}
@@ -876,29 +995,44 @@ const Data = () => {
               if (!open) {
                 // Do not set to undefined, as this will cause flicker when
                 // data in nulled and the fields in the dialog get reset.
-                setConfigureSourceDialogOpen((s) => ({
-                  ...s,
-                  open: false,
-                }));
+                setConfigureSourceDialogOpen((s) => ({ ...s, open: false }));
               }
             }}
             sourceId={configureSourceDialogOpen?.source?.id}
             defaultView={configureSourceDialogOpen?.view}
           />
-          <WebsitePagesConfigurationDialog
+          <GitHubRepoConfigurationDialog
             projectId={project?.id}
             open={
               configureSourceDialogOpen.open &&
-              configureSourceDialogOpen?.dialogId === 'website-pages'
+              configureSourceDialogOpen?.dialogId === 'github-repo'
             }
             onOpenChange={(open) => {
               if (!open) {
                 // Do not set to undefined, as this will cause flicker when
                 // data in nulled and the fields in the dialog get reset.
-                setConfigureSourceDialogOpen((s) => ({
-                  ...s,
-                  open: false,
-                }));
+                setConfigureSourceDialogOpen((s) => ({ ...s, open: false }));
+              }
+            }}
+            sourceId={configureSourceDialogOpen?.source?.id}
+            defaultView={configureSourceDialogOpen?.view}
+          />
+          <SalesforceDatabaseConfigurationDialog
+            projectId={project?.id}
+            open={
+              configureSourceDialogOpen.open &&
+              (configureSourceDialogOpen?.dialogId === 'salesforce-knowledge' ||
+                configureSourceDialogOpen?.dialogId ===
+                  'salesforce-knowledge-sandbox' ||
+                configureSourceDialogOpen?.dialogId === 'salesforce-case' ||
+                configureSourceDialogOpen?.dialogId ===
+                  'salesforce-case-sandbox')
+            }
+            onOpenChange={(open) => {
+              if (!open) {
+                // Do not set to undefined, as this will cause flicker when
+                // data in nulled and the fields in the dialog get reset.
+                setConfigureSourceDialogOpen((s) => ({ ...s, open: false }));
               }
             }}
             sourceId={configureSourceDialogOpen?.source?.id}
@@ -906,7 +1040,7 @@ const Data = () => {
           />
         </>
       )}
-    </ProjectSettingsLayout>
+    </ProjectLayout>
   );
 };
 

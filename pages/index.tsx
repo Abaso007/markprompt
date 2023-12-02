@@ -3,8 +3,9 @@ import { GetStaticProps, InferGetStaticPropsType } from 'next';
 import { FC, memo } from 'react';
 
 import AppPage from '@/components/pages/App';
-import LandingPage from '@/components/pages/Landing';
 import { getIndexPageStaticProps } from '@/lib/pages';
+
+import Home from './home';
 
 export interface RawDomainStats {
   timestamp: number;
@@ -19,7 +20,7 @@ const Index: FC<InferGetStaticPropsType<typeof getIndexPageStaticProps>> = ({
   const session = useSession();
 
   if (!session) {
-    return <LandingPage stars={stars} status={status} />;
+    return <Home stars={stars} status={status} />;
   } else {
     return <AppPage />;
   }

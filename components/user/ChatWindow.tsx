@@ -194,7 +194,7 @@ export const ContactWindow = ({
                     variant="cta"
                     buttonSize="sm"
                     type="submit"
-                    href="https://meetings.hubspot.com/markprompt/demo"
+                    href="https://calendly.com/markprompt/30min"
                     target="_blank"
                   >
                     Book a demo

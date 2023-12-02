@@ -62,6 +62,13 @@ integrations:
       auto_start: false
       returns:
         - NangoFile
+  github-repo:
+    github-repo:
+      type: sync
+      runs: every week
+      auto_start: false
+      returns:
+        - NangoFile
 models:
   NangoFile:
     id: string
@@ -70,4 +77,5 @@ models:
     content: string | undefined
     contentType: string | undefined
     meta: object | undefined
+    lastModified: date | undefined
     error: string | undefined

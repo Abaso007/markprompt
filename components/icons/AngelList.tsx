@@ -1,10 +1,10 @@
 import { FC } from 'react';
 
-type AngeListIconProps = {
+type AngelListIconProps = {
   className?: string;
 };
 
-export const AngelListIcon: FC<AngeListIconProps> = ({ className }) => {
+export const AngelListIcon: FC<AngelListIconProps> = ({ className }) => {
   return (
     <svg className={className} fill="none" viewBox="0 0 95 22">
       <g clipPath="url(#prefix__clip0_5089_195987)">

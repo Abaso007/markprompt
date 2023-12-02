@@ -33,14 +33,14 @@ export const TopReferences: FC<TopReferencesProps> = ({
       <SkeletonTable onDark loading={loading} />
       {topReferences?.map((r, i) => {
         const Icon = getIconForSource({
-          type: r.source_type,
-          data: r.source_data,
+          type: r.sourceType,
+          data: r.sourceData,
         });
         return (
           <div key={`top-reference-${i}-${r.path}`} className="relative">
-            <div className="relative z-10 flex flex-row items-center gap-3 px-2 py-1 text-sm text-neutral-300">
+            <div className="relative z-10 flex flex-row items-center gap-3 overflow-hidden px-2 py-1.5 text-sm text-neutral-300">
               <Icon className="h-4 w-4 flex-none text-neutral-500" />
-              <span className="flex-grow truncate">{r.path}</span>
+              <span className="flex-grow truncate">{r.title}</span>
               <span className="flex-none font-semibold">
                 {r.occurrences || 0}
               </span>

@@ -8,12 +8,14 @@ import useSources from '@/lib/hooks/use-sources';
 import { getNangoClientInstance } from '@/lib/integrations/nango.client';
 import { DbSource, Project } from '@/types/types';
 
-import { SyncStep, addSourceAndNangoConnection } from './shared';
+import {
+  SyncStep,
+  addSourceAndNangoConnection,
+  isIntegrationAuthed,
+} from './shared';
 import { Step, ConnectSourceStepState } from './Step';
 import { NotionPagesSettings } from '../settings-panes/NotionPages';
 import SourceDialog from '../SourceDialog';
-
-const nango = getNangoClientInstance();
 
 const ConnectStep = ({
   projectId,
@@ -29,6 +31,8 @@ const ConnectStep = ({
 
   const connect = useCallback(async () => {
     try {
+      const nango = getNangoClientInstance();
+
       setLoading(true);
       const integrationId = 'notion-pages';
       const name = generateUniqueName(integrationId);
@@ -39,7 +43,7 @@ const ConnectStep = ({
         name,
         undefined,
         undefined,
-        true,
+        isIntegrationAuthed(integrationId),
       );
 
       if (!newSource) {

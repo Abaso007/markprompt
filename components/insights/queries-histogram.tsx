@@ -26,6 +26,8 @@ import { SkeletonTable } from '../ui/Skeletons';
 type QueriesHistogramProps = {
   data: DateCountHistogramEntry[];
   dateRange?: DateRange;
+  light?: boolean;
+  noDecorations?: boolean;
   loading?: boolean;
 };
 
@@ -95,6 +97,8 @@ const getHistogram = (
 export const QueriesHistogram: FC<QueriesHistogramProps> = ({
   data,
   dateRange,
+  light,
+  noDecorations,
   loading,
 }) => {
   const chartData = useMemo(() => {
@@ -109,7 +113,13 @@ export const QueriesHistogram: FC<QueriesHistogramProps> = ({
     <div className="relative flex h-[200px] flex-col gap-2">
       <SkeletonTable onDark loading={loading} />
       {data?.length > 0 && (
-        <BarChart data={chartData} height={180} interval="7d" />
+        <BarChart
+          light={light}
+          data={chartData}
+          height={180}
+          interval="7d"
+          noDecorations={noDecorations}
+        />
       )}
     </div>
   );

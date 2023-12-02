@@ -20,17 +20,6 @@ type SalesforceSharedFormProps = {
   forceDisabled?: boolean;
 };
 
-export interface SalesforceSyncMetadata {
-  customFields: string[];
-  filters: string;
-  mappings: {
-    title: string | undefined;
-    content: string | undefined;
-    path: string | undefined;
-  };
-  metadataFields: string[];
-}
-
 export const SalesforceSharedForm: FC<SalesforceSharedFormProps> = ({
   isSubmitting,
   forceDisabled,

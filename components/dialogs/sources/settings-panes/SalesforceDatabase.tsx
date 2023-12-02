@@ -19,10 +19,14 @@ import { NoAutoInput } from '@/components/ui/Input';
 import { setSourceData } from '@/lib/api';
 import useSources from '@/lib/hooks/use-sources';
 import { setMetadata } from '@/lib/integrations/nango.client';
-import { SalesforceSyncMetadata } from '@/lib/integrations/salesforce';
 import { parseProcessorOptions } from '@/lib/schema';
 import { capitalize } from '@/lib/utils';
-import { DbSource, NangoSourceDataType, Project } from '@/types/types';
+import {
+  DbSource,
+  NangoSourceDataType,
+  Project,
+  SalesforceSyncMetadata,
+} from '@/types/types';
 
 import { SalesforceSharedForm } from './SalesforceSharedForm';
 import { prepareFields } from './utils';

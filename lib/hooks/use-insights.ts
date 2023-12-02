@@ -79,6 +79,7 @@ export default function useInsights() {
   const storageKey = project?.id
     ? `${project.id}:insights:query-filters`
     : undefined;
+
   useEffect(() => {
     if (!storageKey) {
       return;

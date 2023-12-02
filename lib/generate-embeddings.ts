@@ -16,6 +16,7 @@ import {
   FileData,
   FileSectionData,
   FileSectionsData,
+  MarkpromptConfig,
   OpenAIModelIdWithType,
   Project,
 } from '@/types/types';
@@ -27,7 +28,6 @@ import {
   markdownToFileSectionData,
   rstToFileSectionData,
 } from './markdown';
-import { MarkpromptConfig } from './schema';
 import { tokensToApproxParagraphs } from './stripe/tiers';
 import { createFile, getTokenAllowanceInfo } from './supabase';
 

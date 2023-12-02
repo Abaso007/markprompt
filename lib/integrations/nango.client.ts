@@ -67,6 +67,36 @@ export const triggerSyncs = async (
   return getResponseOrThrow<void>(res);
 };
 
+export const retrainOnly = async (projectId: Project['id'], data: SyncData) => {
+  const res = await fetch(
+    `/api/project/${projectId}/integrations/nango/retrain-only`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ data }),
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+    },
+  );
+  return getResponseOrThrow<void>(res);
+};
+
+export const stopSync = async (projectId: Project['id'], data: SyncData) => {
+  const res = await fetch(
+    `/api/project/${projectId}/integrations/nango/stop-sync`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ data }),
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+    },
+  );
+  return getResponseOrThrow<void>(res);
+};
+
 export const getRecords = async (
   projectId: Project['id'],
   integrationId: NangoIntegrationId,

@@ -4,8 +4,10 @@ import { CalendarIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { formatShortDateTimeInTimeZone } from '@/lib/date';
+import { Database } from '@/types/supabase';
 import {
   DateCountHistogramEntry,
+  NangoIntegrationId,
   ReferenceWithOccurrenceCount,
 } from '@/types/types';
 
@@ -22,13 +24,77 @@ import {
 } from '../ui/Table';
 import { Tag } from '../ui/Tag';
 
+const sourceType = 'nango' as Database['public']['Enums']['source_type'];
+const integrationIdWebsitePages = 'website-pages' as NangoIntegrationId;
+const integrationIdNotionPages = 'notion-pages' as NangoIntegrationId;
+
 const sampleTopReferences: ReferenceWithOccurrenceCount[] = [
-  { path: '/help/getting-started', occurrences: 134 },
-  { path: '/help/tutorials/react', occurrences: 121 },
-  { path: '/blog/zendesk', occurrences: 119 },
-  { path: '/blog', occurrences: 104 },
-  { path: '/help/articles/cli', occurrences: 97 },
-  { path: '/help/faq', occurrences: 83 },
+  {
+    title: 'Getting started',
+    path: '/help/getting-started',
+    sourceData: {
+      integrationId: integrationIdWebsitePages,
+      connectionId: '123',
+      name: 'Markprompt blog',
+    },
+    sourceType,
+    occurrences: 134,
+  },
+  {
+    title: 'React tutorial',
+    path: '/help/tutorials/react',
+    sourceData: {
+      integrationId: integrationIdNotionPages,
+      connectionId: '123',
+      name: 'Markprompt blog',
+    },
+    sourceType,
+    occurrences: 121,
+  },
+  {
+    title: 'Zendesk guide',
+    path: '/blog/zendesk',
+    sourceData: {
+      integrationId: integrationIdWebsitePages,
+      connectionId: '123',
+      name: 'Markprompt blog',
+    },
+    sourceType,
+    occurrences: 119,
+  },
+  {
+    title: 'Blog',
+    path: '/blog',
+    sourceData: {
+      integrationId: integrationIdWebsitePages,
+      connectionId: '123',
+      name: 'Markprompt blog',
+    },
+    sourceType,
+    occurrences: 104,
+  },
+  {
+    title: 'CLI',
+    path: '/help/articles/cli',
+    sourceData: {
+      integrationId: integrationIdWebsitePages,
+      connectionId: '123',
+      name: 'Markprompt blog',
+    },
+    sourceType,
+    occurrences: 97,
+  },
+  {
+    title: 'FAQ',
+    path: '/help/faq',
+    sourceData: {
+      integrationId: integrationIdNotionPages,
+      connectionId: '123',
+      name: 'Markprompt blog',
+    },
+    sourceType,
+    occurrences: 83,
+  },
 ].map((s) => ({ ...s, source_type: 'github', source_data: null }));
 
 type Question = {
@@ -76,7 +142,13 @@ const sampleQueriesHistogram: DateCountHistogramEntry[] = [
   903, 848, 740, 1003, 1014, 859, 992, 1023,
 ].map((c, i) => ({ count: c, date: add(new Date(), { days: -7 + i }) }));
 
-export const InsightsExample = () => {
+export const InsightsExample = ({
+  light,
+  noDecorations,
+}: {
+  light?: boolean;
+  noDecorations?: boolean;
+}) => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -97,52 +169,58 @@ export const InsightsExample = () => {
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="col-span-2">
-          <h3 className="mb-4 text-xl font-bold text-neutral-300">Insights</h3>
-          <div className="pointer-events-none hidden flex-row sm:flex">
-            <Button
-              variant="plain"
-              left
-              light
-              buttonSize="sm"
-              asDropdown
-              squareCorners="right"
-              className="justify-start text-left font-normal"
-            >
-              Past 7 days
-            </Button>
-            <Button
-              variant="plain"
-              left
-              light
-              buttonSize="sm"
-              squareCorners="left"
-              className="justify-start text-left font-normal"
-              Icon={(props) => (
-                <CalendarIcon
-                  {...props}
-                  className={cn(props.className, 'text-neutral-500')}
-                />
-              )}
-            >
-              {format(dateRange.from, 'LLL dd, y')} -{' '}
-              {format(dateRange.to, 'LLL dd, y')}
-            </Button>
-          </div>
-          <div className="pointer-events-none block sm:hidden">
-            <Button
-              variant="plain"
-              left
-              light
-              buttonSize="sm"
-              asDropdown
-              className="justify-start text-left font-normal"
-            >
-              Past 7 days
-            </Button>
-          </div>
-          <h3 className="mb-4 mt-8 font-bold text-neutral-300">
-            Latest questions
-          </h3>
+          {!light && (
+            <>
+              <h3 className="mb-4 text-xl font-bold text-neutral-300">
+                Insights
+              </h3>
+              <div className="pointer-events-none hidden flex-row sm:flex">
+                <Button
+                  variant="plain"
+                  left
+                  light
+                  buttonSize="sm"
+                  asDropdown
+                  squareCorners="right"
+                  className="justify-start text-left font-normal"
+                >
+                  Past 7 days
+                </Button>
+                <Button
+                  variant="plain"
+                  left
+                  light
+                  buttonSize="sm"
+                  squareCorners="left"
+                  className="justify-start text-left font-normal"
+                  Icon={(props) => (
+                    <CalendarIcon
+                      {...props}
+                      className={cn(props.className, 'text-neutral-500')}
+                    />
+                  )}
+                >
+                  {format(dateRange.from, 'LLL dd, y')} -{' '}
+                  {format(dateRange.to, 'LLL dd, y')}
+                </Button>
+              </div>
+              <div className="pointer-events-none block sm:hidden">
+                <Button
+                  variant="plain"
+                  left
+                  light
+                  buttonSize="sm"
+                  asDropdown
+                  className="justify-start text-left font-normal"
+                >
+                  Past 7 days
+                </Button>
+              </div>
+              <h3 className="mb-4 mt-8 font-bold text-neutral-300">
+                Latest questions
+              </h3>
+            </>
+          )}
           <div className="overflow-x-auto">
             <Table>
               <colgroup>
@@ -152,34 +230,53 @@ export const InsightsExample = () => {
                 <col className="w-[190px]" />
               </colgroup>
               <TableHeader className="text-neutral-300">
-                <TableRow>
-                  <TableHead>Question</TableHead>
-                  <TableHead>Feedback</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
+                <TableRow light={light}>
+                  <TableHead light={light}>Question</TableHead>
+                  <TableHead light={light}>Feedback</TableHead>
+                  <TableHead light={light}>Status</TableHead>
+                  <TableHead light={light}>Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sampleQuestions.map((q, i) => {
                   return (
-                    <TableRow key={`sample-question-${i}`}>
-                      <TableCell className="overflow-hidden truncate text-neutral-300">
+                    <TableRow light={light} key={`sample-question-${i}`}>
+                      <TableCell
+                        className={cn('overflow-hidden truncate', {
+                          'text-neutral-300': !light,
+                          'text-neutral-500': light,
+                        })}
+                      >
                         {q.question}
                       </TableCell>
                       <TableCell>
                         {q.feedback === '1' ? (
-                          <ThumbsUpIcon className="h-4 w-4 text-green-600" />
+                          <ThumbsUpIcon
+                            className={cn('h-4 w-4', {
+                              'text-green-600': !light,
+                              'text-green-400': light,
+                            })}
+                          />
                         ) : q.feedback === '-1' ? (
-                          <ThumbsDownIcon className="h-4 w-4 text-orange-600" />
+                          <ThumbsDownIcon
+                            className={cn('h-4 w-4', {
+                              'text-orange-600': !light,
+                              'text-orange-400': light,
+                            })}
+                          />
                         ) : (
                           <></>
                         )}
                       </TableCell>
                       <TableCell>
                         {q.unanswered ? (
-                          <Tag color="orange">Unanswered</Tag>
+                          <Tag color="orange" inverted={light}>
+                            Unanswered
+                          </Tag>
                         ) : (
-                          <Tag color="green">Answered</Tag>
+                          <Tag color="green" inverted={light}>
+                            Answered
+                          </Tag>
                         )}
                       </TableCell>
                       <TableCell className="text-neutral-500">
@@ -193,15 +290,29 @@ export const InsightsExample = () => {
           </div>
         </div>
         <div>
-          <h3 className="mb-4 font-bold text-neutral-300">New questions</h3>
+          <h3
+            className={cn('mb-4', {
+              'font-bold text-neutral-300': !light,
+              'font-medium text-neutral-500': light,
+            })}
+          >
+            New questions
+          </h3>
           <QueriesHistogram
             dateRange={dateRange}
             data={sampleQueriesHistogram}
+            light={light}
+            noDecorations={noDecorations}
           />
-          <h3 className="mb-4 mt-8 font-bold text-neutral-300">
+          <h3
+            className={cn('mb-4 mt-8 font-bold', {
+              'text-neutral-300': !light,
+              'text-neutral-500': light,
+            })}
+          >
             Most cited sources
           </h3>
-          <TopReferences topReferences={sampleTopReferences} />
+          {!light && <TopReferences topReferences={sampleTopReferences} />}
         </div>
       </div>
     </>

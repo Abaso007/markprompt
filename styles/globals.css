@@ -7,6 +7,7 @@
 @import 'ui.css';
 @import 'prism.css';
 @import 'markprompt.css';
+@import 'home.css';
 @import 'supabase.css';
 
 @layer base {
@@ -352,7 +353,7 @@ textarea {
 }
 
 .dropdown-menu-item {
-  @apply relative flex-none cursor-pointer border-0 py-2 text-sm text-neutral-300 outline-none transition hover:bg-neutral-800;
+  @apply relative flex-none cursor-pointer border-0 py-2 text-sm text-neutral-300 outline-none transition hover:bg-neutral-800 data-[disabled]:cursor-not-allowed data-[disabled]:text-neutral-500 data-[disabled]:hover:bg-transparent;
 }
 
 .dropdown-menu-item-noindent {

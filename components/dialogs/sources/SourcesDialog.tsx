@@ -3,6 +3,7 @@ import { Globe } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { FC, JSXElementConstructor, ReactNode, useState } from 'react';
 
+import { GitHubIcon } from '@/components/icons/GitHub';
 import { NotionIcon } from '@/components/icons/Notion';
 import { SalesforceFullIcon } from '@/components/icons/Salesforce';
 import Button from '@/components/ui/Button';
@@ -16,22 +17,34 @@ type SourceSpec = {
   Icon: JSXElementConstructor<any>;
 };
 
-const SalesforceDatabaseOnboardingDialog = dynamic(
-  () => import('@/components/dialogs/sources/onboarding/SalesforceDatabase'),
+const WebsitePagesOnboardingDialog = dynamic(
+  () => import('@/components/dialogs/sources/onboarding/WebsitePages'),
 );
 
 const NotionPagesOnboardingDialog = dynamic(
   () => import('@/components/dialogs/sources/onboarding/NotionPages'),
 );
 
-const WebsitePagesOnboardingDialog = dynamic(
-  () => import('@/components/dialogs/sources/onboarding/WebsitePages'),
+const GitHubRepoOnboardingDialog = dynamic(
+  () => import('@/components/dialogs/sources/onboarding/GitHubRepo'),
+);
+
+const SalesforceDatabaseOnboardingDialog = dynamic(
+  () => import('@/components/dialogs/sources/onboarding/SalesforceDatabase'),
 );
 
 const sources: SourceSpec[] = [
   {
+    integrationId: 'website-pages',
+    Icon: (props) => <Globe {...props} strokeWidth={1.5} />,
+  },
+  {
     integrationId: 'notion-pages',
     Icon: NotionIcon,
+  },
+  {
+    integrationId: 'github-repo',
+    Icon: GitHubIcon,
   },
   {
     integrationId: 'salesforce-knowledge',
@@ -40,10 +53,6 @@ const sources: SourceSpec[] = [
   {
     integrationId: 'salesforce-case',
     Icon: SalesforceFullIcon,
-  },
-  {
-    integrationId: 'website-pages',
-    Icon: (props) => <Globe {...props} strokeWidth={1.5} />,
   },
 ];
 
@@ -56,7 +65,7 @@ const SourceButton: FC<
 > = ({ source: { integrationId, Icon }, onSelected }) => {
   return (
     <button
-      className="button-ring group flex flex-col items-center justify-start gap-4 rounded-md px-2 py-4 transition hover:bg-neutral-900"
+      className="button-ring group flex flex-col items-center justify-start gap-1 rounded-md px-2 py-3 transition hover:bg-neutral-900"
       onClick={() => onSelected()}
     >
       <Icon className="h-10 w-10 flex-none text-neutral-300 group-hover:text-neutral-100 group-focus:text-neutral-100" />
@@ -140,6 +149,30 @@ const SourcesDialog = ({
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+      <WebsitePagesOnboardingDialog
+        open={connectSourceDialogOpen?.dialogId === 'website-pages'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConnectSourceDialogOpen(undefined);
+          }
+        }}
+      />
+      <NotionPagesOnboardingDialog
+        open={connectSourceDialogOpen?.dialogId === 'notion-pages'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConnectSourceDialogOpen(undefined);
+          }
+        }}
+      />
+      <GitHubRepoOnboardingDialog
+        open={connectSourceDialogOpen?.dialogId === 'github-repo'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConnectSourceDialogOpen(undefined);
+          }
+        }}
+      />
       <SalesforceDatabaseOnboardingDialog
         databaseType="knowledge"
         open={
@@ -158,22 +191,6 @@ const SourcesDialog = ({
           connectSourceDialogOpen?.dialogId === 'salesforce-case' ||
           connectSourceDialogOpen?.dialogId === 'salesforce-case-sandbox'
         }
-        onOpenChange={(open) => {
-          if (!open) {
-            setConnectSourceDialogOpen(undefined);
-          }
-        }}
-      />
-      <NotionPagesOnboardingDialog
-        open={connectSourceDialogOpen?.dialogId === 'notion-pages'}
-        onOpenChange={(open) => {
-          if (!open) {
-            setConnectSourceDialogOpen(undefined);
-          }
-        }}
-      />
-      <WebsitePagesOnboardingDialog
-        open={connectSourceDialogOpen?.dialogId === 'website-pages'}
         onOpenChange={(open) => {
           if (!open) {
             setConnectSourceDialogOpen(undefined);

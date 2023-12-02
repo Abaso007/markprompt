@@ -21,6 +21,7 @@ const RESERVED_TEAM_SLUGS = [
   'api',
   'app',
   'blog',
+  'customers',
   'docs',
   'emails',
   'embed',
@@ -31,6 +32,7 @@ const RESERVED_TEAM_SLUGS = [
   'resources',
   's',
   'settings',
+  'templates',
 ];
 
 export const isTeamSlugAvailable = async (

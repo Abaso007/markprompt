@@ -31,14 +31,15 @@ import { getFileTitle } from '@/lib/utils.non-edge';
 import { DbFile } from '@/types/types';
 
 import { MarkdownContainer } from '../emails/templates/MarkdownContainer';
-import Button from '../ui/Button';
 import { CodePanel } from '../ui/CodePanel';
 import { SkeletonTable } from '../ui/Skeletons';
 
 dayjs.extend(localizedFormat);
 
 // The editor can take either a file id, or reference data (e.g. from
-// the conversation query stats).
+// the conversation query stats). The reason we accept both there, and
+// not rely e.g. on the called to fetch the file id first, is that we
+// want the editor to show up immediately when clicking a reference.
 type EditorProps = {
   fileId?: DbFile['id'];
   fileReferenceData?: FileReferenceFileData;
@@ -76,6 +77,8 @@ export const Editor: FC<EditorProps> = ({
   const { sources } = useSources();
   const [fileId, setFileId] = useState(_fileId);
   const [view, setView] = useLocalStorage<EditorView>('editor:view', 'preview');
+  const [loadingFileId, setLoadingFileId] = useState(false);
+  const [fileIdError, setFileIdError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (!project?.id || _fileId || !fileReferenceData) {
@@ -83,23 +86,30 @@ export const Editor: FC<EditorProps> = ({
     }
 
     (async () => {
-      const fileId = await getFileIdBySourceAndPath(
-        project?.id,
-        fileReferenceData.source,
-        fileReferenceData.path,
-      );
-      if (fileId) {
-        setFileId(fileId);
+      setLoadingFileId(true);
+      try {
+        setFileIdError(undefined);
+        const fileId = await getFileIdBySourceAndPath(
+          project?.id,
+          fileReferenceData.source,
+          fileReferenceData.path,
+        );
+        if (fileId) {
+          setFileId(fileId);
+        }
+      } catch (e) {
+        setFileIdError(`${e}`);
       }
+      setLoadingFileId(false);
     })();
   }, [project?.id, _fileId, fileReferenceData]);
 
-  const { data: file, error } = useSWR(
+  const { data: file, error: fileError } = useSWR(
     project?.id && fileId ? `/api/project/${project.id}/files/${fileId}` : null,
     fetcher<DbFile>,
   );
 
-  const loading = !file && !error;
+  const loading = (!file && !fileError && !fileIdError) || loadingFileId;
 
   const source = useMemo(() => {
     return sources?.find((s) => s.id === file?.source_id);

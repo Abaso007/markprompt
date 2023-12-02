@@ -33,12 +33,15 @@ export const MARKPROMPT_JS_PACKAGE_VERSIONS = {
 
 export const EMBEDDING_MODEL = 'text-embedding-ada-002';
 
-// Requests per minute
+// OpenAI requests per minute
 export const OPENAI_RPM = {
   'text-embedding-ada-002': 5_000,
 };
 
-// Tokens per minute
+// OpenAI tokens per minute
 export const OPENAI_TPM = {
   'text-embedding-ada-002': 5_000_000,
 };
+
+// GitHub requests per hour: https://docs.github.com/en/rest/overview/rate-limits-for-the-rest-api?apiVersion=2022-11-28#primary-rate-limit-for-github-app-installations
+export const GITHUB_RPH = 5_000;

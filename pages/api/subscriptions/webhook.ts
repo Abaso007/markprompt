@@ -92,7 +92,7 @@ export default async function handler(
 
           // Stripe knows the team id as it's been associated to
           // client_reference_id during checkout.
-          const teamId = checkoutSession.client_reference_id;
+          const teamId = checkoutSession.client_reference_id!;
 
           const subscription = await stripe.subscriptions.retrieve(
             checkoutSession.subscription as string,

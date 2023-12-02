@@ -2,7 +2,15 @@ import { load } from 'cheerio';
 
 import { turndownService } from './turndown-instance';
 
-const htmlExcludeTags = ['head', 'script', 'style', 'nav', 'footer', 'aside'];
+const htmlExcludeTags = [
+  'head',
+  'script',
+  'style',
+  'nav',
+  'footer',
+  'aside',
+  'svg',
+];
 
 export const htmlToMarkdown = (
   htmlContent: string,
@@ -12,13 +20,23 @@ export const htmlToMarkdown = (
   const $ = load(htmlContent);
 
   htmlExcludeTags.forEach((tag) => {
-    $(tag).remove();
+    try {
+      $(tag).remove();
+    } catch {
+      // Do nothing
+    }
   });
 
-  const target = $(includeSelectors ?? 'body');
+  const target = $(
+    includeSelectors && includeSelectors.length > 0 ? includeSelectors : 'body',
+  );
 
-  if (excludeSelectors) {
-    target.find(excludeSelectors).remove();
+  try {
+    if (excludeSelectors && excludeSelectors.length > 0) {
+      target.find(excludeSelectors).remove();
+    }
+  } catch {
+    // Cheerio throws in case of empty selection
   }
 
   return turndownService.turndown(target.html() || '');

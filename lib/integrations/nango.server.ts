@@ -1,8 +1,13 @@
 import { Nango } from '@nangohq/node';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { NangoSyncPayload } from '@/pages/api/inngest';
 import type { Database } from '@/types/supabase';
-import { DbSource, SyncData } from '@/types/types';
+import { DbSource, NangoSourceDataType, SyncData } from '@/types/types';
+
+import { getSyncId } from './nango';
+import { TeamTierInfo, isAutoSyncEnabled } from '../stripe/tiers';
+import { getProjectIdFromSource } from '../supabase';
 
 export const getNangoServerInstance = () => {
   return new Nango({
@@ -44,7 +49,61 @@ export const getSourceSyncData = async (
   return data;
 };
 
-export const pauseSyncForSource = async (
+export const shouldPauseSync = async (
+  supabase: SupabaseClient<Database>,
+  nangoSyncPayload: NangoSyncPayload,
+) => {
+  const sourceSyncData = await getSourceSyncData(
+    supabase,
+    nangoSyncPayload.connectionId,
+  );
+
+  if (!sourceSyncData) {
+    return true;
+  }
+
+  const projectId = await getProjectIdFromSource(supabase, sourceSyncData.id);
+
+  if (!projectId) {
+    return true;
+  }
+
+  const { data } = await supabase
+    .from('projects')
+    .select('id,teams(stripe_price_id,plan_details)')
+    .eq('id', projectId)
+    .limit(1)
+    .maybeSingle();
+
+  if (!data?.teams) {
+    return true;
+  }
+
+  return !isAutoSyncEnabled(data.teams as TeamTierInfo);
+};
+
+export const pauseConnection = async (
+  supabase: SupabaseClient<Database>,
+  connectionId: string,
+) => {
+  const sourceSyncData = await getSourceSyncData(supabase, connectionId);
+  const data = sourceSyncData?.data as NangoSourceDataType;
+  const integrationId = data.integrationId;
+
+  if (!integrationId || !connectionId) {
+    return;
+  }
+
+  const syncId = getSyncId(integrationId);
+
+  await pauseSyncForSource(supabase, {
+    integrationId,
+    connectionId,
+    syncId,
+  });
+};
+
+const pauseSyncForSource = async (
   supabase: SupabaseClient<Database>,
   data: SyncData,
 ) => {
@@ -79,4 +138,21 @@ export const pauseSyncForSource = async (
       }
     }
   }
+};
+
+export const deleteConnection = async (
+  supabase: SupabaseClient<Database>,
+  connectionId: string,
+) => {
+  const sourceSyncData = await getSourceSyncData(supabase, connectionId);
+  const data = sourceSyncData?.data as NangoSourceDataType;
+  const integrationId = data.integrationId;
+
+  if (!integrationId || !connectionId) {
+    return;
+  }
+
+  const nango = getNangoServerInstance();
+
+  await nango.deleteConnection(integrationId, connectionId);
 };

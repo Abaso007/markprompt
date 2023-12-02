@@ -38,7 +38,10 @@ export const integrationRequiresAuth = (integrationId: NangoIntegrationId) => {
     case 'salesforce-case-sandbox':
     case 'salesforce-knowledge':
     case 'salesforce-knowledge-sandbox':
+    case 'github-repo':
       return true;
+    default:
+      return false;
   }
 };
 
@@ -54,6 +57,8 @@ export const getIntegrationName = (integrationId: NangoIntegrationId) => {
       return 'Notion';
     case 'website-pages':
       return 'Website';
+    case 'github-repo':
+      return 'GitHub';
   }
 };
 

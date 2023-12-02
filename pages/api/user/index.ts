@@ -50,7 +50,9 @@ export default async function handler(
         // have a valid session, but the associated token will
         // not be valid for making requests to Supabase, so we need
         // to log them out first.
-        return res.status(403).json({ error: 'Forbidden' });
+        return res
+          .status(403)
+          .json({ error: 'Forbidden', status: 'InvalidSignature' });
       }
       return res.status(400).json({ error: error.message });
     }

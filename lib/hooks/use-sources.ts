@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import useSWR from 'swr';
 import { isPresent } from 'ts-is-present';
 
+import { triggerSyncsWithRecovery } from '@/components/dialogs/sources/onboarding/shared';
 import {
   DbSource,
   DbSyncQueueOverview,
@@ -12,7 +13,7 @@ import {
 
 import useProject from './use-project';
 import { getIntegrationName, getSyncData } from '../integrations/nango';
-import { triggerSyncs } from '../integrations/nango.client';
+import { getNangoClientInstance } from '../integrations/nango.client';
 import { fetcher } from '../utils';
 
 export default function useSources() {
@@ -27,7 +28,7 @@ export default function useSources() {
   );
 
   const { data: latestSyncQueues, mutate: mutateSyncQueues } = useSWR(
-    project?.id ? `/api/project/${project.id}/sources/syncs/latest` : null,
+    project?.id ? `/api/project/${project.id}/syncs/latest` : null,
     fetcher<DbSyncQueueOverview[]>,
     { refreshInterval: 10000 },
   );
@@ -38,14 +39,16 @@ export default function useSources() {
     if (!project?.id || !sources || sources.length === 0) {
       return;
     }
-    return triggerSyncs(
-      project.id,
-      sources.map((d) => getSyncData(d)).filter(isPresent),
-    );
+
+    const syncData = sources.map((d) => getSyncData(d)).filter(isPresent);
+
+    const nango = getNangoClientInstance();
+
+    await triggerSyncsWithRecovery(nango, project.id, syncData, sources);
   }, [project?.id, sources]);
 
   const syncSources = useCallback(
-    (
+    async (
       sources: Pick<DbSource, 'type' | 'data'>[],
       onIsMessageLoading?: (started: boolean) => void,
     ) => {
@@ -53,24 +56,24 @@ export default function useSources() {
         return;
       }
 
-      const data = sources.map((s) => getSyncData(s)).filter(isPresent);
-      if (data.length === 0) {
+      const syncData = sources.map((s) => getSyncData(s)).filter(isPresent);
+
+      if (syncData.length === 0) {
         return;
       }
 
       onIsMessageLoading?.(true);
-      const triggerSyncPromise = triggerSyncs(project.id, data);
-      toast.promise(triggerSyncPromise, {
-        loading: 'Initiating sync...',
-        success: () => {
-          mutateSyncQueues();
-          return 'Sync has been initiated';
-        },
-        error: 'Error initiating sync',
-        finally: () => {
-          onIsMessageLoading?.(false);
-        },
-      });
+
+      const tid = toast.loading('Initiating sync...');
+
+      const nango = getNangoClientInstance();
+
+      await triggerSyncsWithRecovery(nango, project.id, syncData, sources);
+
+      toast.success('Sync has been initiated', { id: tid });
+
+      mutateSyncQueues();
+      onIsMessageLoading?.(false);
     },
     [project?.id, mutateSyncQueues],
   );

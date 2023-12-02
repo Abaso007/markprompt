@@ -23,6 +23,10 @@ const supabaseAdmin = createServiceRoleSupabaseClient();
 export const getStaticProps: GetStaticProps = async ({ params }) => {
   const shareKey = params?.key;
 
+  if (!shareKey) {
+    throw new Error('Missing share key');
+  }
+
   const { data, error } = await supabaseAdmin
     .from('prompt_configs')
     .select('project_id,config,projects(public_api_key)')
@@ -30,7 +34,7 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
     .limit(1)
     .maybeSingle();
 
-  const projectKey = (data?.projects as any)?.public_api_key;
+  const projectKey = data?.projects?.public_api_key;
 
   if (error || !data?.config || !projectKey) {
     throw new Error('Failed to fetch config');

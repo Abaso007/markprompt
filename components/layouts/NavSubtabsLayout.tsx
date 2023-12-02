@@ -2,6 +2,7 @@ import cn from 'classnames';
 import Head from 'next/head';
 import { FC, ReactNode } from 'react';
 
+import { LayoutTitle } from './LayoutTitle';
 import { NavLayout } from './NavLayout';
 import SubTabs, { SubTabItem } from './SubTabs';
 
@@ -9,6 +10,7 @@ export type NavSubtabsLayoutProps = {
   title: string;
   titleComponent?: ReactNode;
   noHeading?: boolean;
+  noPadding?: boolean;
   width?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   subTabItems?: SubTabItem[];
   SubHeading?: ReactNode;
@@ -20,6 +22,7 @@ export const NavSubtabsLayout: FC<NavSubtabsLayoutProps> = ({
   title,
   titleComponent,
   noHeading,
+  noPadding,
   width: w,
   subTabItems,
   SubHeading,
@@ -38,7 +41,7 @@ export const NavSubtabsLayout: FC<NavSubtabsLayoutProps> = ({
           {subTabItems && <SubTabs items={subTabItems} />}
         </div>
         <div
-          className={cn('relative mx-auto px-4 md:px-8', {
+          className={cn('relative mx-auto', {
             'max-w-screen-2xl': width === '2xl',
             'max-w-screen-xl': width === 'xl',
             'max-w-screen-lg': width === 'lg',
@@ -46,24 +49,17 @@ export const NavSubtabsLayout: FC<NavSubtabsLayoutProps> = ({
             'max-w-screen-sm': width === 'sm',
             'max-w-md': width === 'xs',
             'pt-32': noHeading,
-            'pt-24': !noHeading,
+            'pt-24': !noHeading || noPadding,
+            'px-4 md:px-8': !noPadding,
           })}
         >
           {!noHeading && (
-            <div className="mb-4 flex flex-col pt-8">
-              <div className="flex flex-col gap-4 sm:h-12 sm:flex-row sm:items-center">
-                <h1 className="truncate whitespace-nowrap text-2xl font-bold text-white">
-                  {titleComponent ?? title}
-                </h1>
-                {RightHeading && (
-                  <>
-                    <div className="flex-grow" />
-                    <div className="flex-none">{RightHeading}</div>
-                  </>
-                )}
-              </div>
-              {SubHeading}
-            </div>
+            <LayoutTitle
+              title={title}
+              titleComponent={titleComponent}
+              SubHeading={SubHeading}
+              RightHeading={RightHeading}
+            />
           )}
           {children}
         </div>

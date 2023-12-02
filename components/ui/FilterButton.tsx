@@ -27,11 +27,12 @@ import Input from './Input';
 type FilterButtonProps = {
   legend: string;
   value?: string;
+  plus?: number;
   onClear?: () => void;
 };
 
 export const FilterButton = forwardRef<HTMLButtonElement, FilterButtonProps>(
-  ({ legend, value, onClear, ...props }, ref) => {
+  ({ legend, value, plus, onClear, ...props }, ref) => {
     return (
       <Button
         ref={ref}
@@ -44,7 +45,7 @@ export const FilterButton = forwardRef<HTMLButtonElement, FilterButtonProps>(
       >
         <div className="flex flex-row items-center overflow-visible whitespace-nowrap">
           {value ? (
-            <button
+            <a
               className="group cursor-pointer rounded-full transition duration-200 hover:bg-neutral-900 focus:outline-none"
               onClick={(e) => {
                 e.preventDefault();
@@ -52,7 +53,7 @@ export const FilterButton = forwardRef<HTMLButtonElement, FilterButtonProps>(
               }}
             >
               <XCircle className="h-3 w-3 text-neutral-300 group-hover:text-rose-500 group-focus:text-rose-500" />
-            </button>
+            </a>
           ) : (
             <div>
               <PlusCircle className="h-3 w-3 text-neutral-600" />
@@ -62,9 +63,12 @@ export const FilterButton = forwardRef<HTMLButtonElement, FilterButtonProps>(
           {value && (
             <>
               <div className="ml-2 h-4 w-px bg-neutral-800" />
-              <span className="ml-2 mr-1 font-medium text-sky-500">
+              <span className="ml-2 mr-1 max-w-[140px] truncate overflow-ellipsis font-medium text-sky-500">
                 {value}
               </span>
+              {typeof plus !== 'undefined' && plus > 0 && (
+                <span className="mx-1 font-medium text-sky-500">+{plus}</span>
+              )}
               <ChevronDown className="h-3 w-3 text-neutral-600" />
             </>
           )}
@@ -83,6 +87,7 @@ type MultiSelectFilterButtonProps = {
   options: string[];
   checkedIndices?: number[];
   align?: 'start' | 'center' | 'end';
+  plus?: number;
   onSubmit?: (indices: number[]) => void;
   onClear?: () => void;
 };
@@ -94,6 +99,7 @@ export const MultiSelectFilterButton: FC<MultiSelectFilterButtonProps> = ({
   options,
   checkedIndices: initialCheckedIndices,
   align,
+  plus,
   onSubmit,
   onClear,
 }) => {
@@ -116,7 +122,12 @@ export const MultiSelectFilterButton: FC<MultiSelectFilterButtonProps> = ({
       }}
     >
       <Popover.Trigger asChild>
-        <FilterButton legend={legend} value={activeLabel} onClear={onClear} />
+        <FilterButton
+          legend={legend}
+          value={activeLabel}
+          plus={plus}
+          onClear={onClear}
+        />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content

@@ -8,26 +8,28 @@ describe('html-to-markdown', () => {
       expect(
         htmlToMarkdown(
           `<html>
-      <head>
-        <title>Title</title>
-      </head>
-      <body>
-        <nav>
-            Navigation
-        </nav>
-        <h1>Heading</h1>
-      </body>
-    </html>`,
+          <head>
+            <title>Title</title>
+          </head>
+          <body>
+            <nav>
+                Navigation
+            </nav>
+            <h1>Heading</h1>
+          </body>
+        </html>`,
           undefined,
           undefined,
         ),
       ).toStrictEqual('# Heading');
     });
+
     it('should convert to Markdown content', () => {
       expect(
         htmlToMarkdown('<h1>Heading</h1>', undefined, undefined),
       ).toStrictEqual('# Heading');
     });
+
     it('should target the include selector', () => {
       expect(
         htmlToMarkdown(
@@ -37,6 +39,7 @@ describe('html-to-markdown', () => {
         ),
       ).toStrictEqual('Target');
     });
+
     it('should target multiple include selectors', () => {
       expect(
         htmlToMarkdown(
@@ -50,51 +53,59 @@ describe('html-to-markdown', () => {
       expect(
         htmlToMarkdown(
           `<main>
-  <h1>Heading</h1>
-  <div id="target1">Target 1</div>
-  <div id="target2">Target 2</div>
-</main>`,
+      <h1>Heading</h1>
+      <div id="target1">Target 1</div>
+      <div id="target2">Target 2</div>
+    </main>`,
           undefined,
           '#target1',
         ),
       ).toStrictEqual('# Heading\n\nTarget 2');
     });
+
+    const withTargetsHTML = `<main>
+    <h1>Heading</h1>
+    <div class="parent">
+      <div id="target1">Target 1</div>
+      <div id="target2">Target 2</div>
+      <div id="target3">Target 3</div>
+    </div>
+  </main>`;
+
     it('should exclude multiple targets', () => {
       expect(
-        htmlToMarkdown(
-          `<main>
-  <h1>Heading</h1>
-  <div id="target1">Target 1</div>
-  <div id="target2">Target 2</div>
-  <div id="target3">Target 3</div>
-</main>`,
-          undefined,
-          '#target1,#target3',
-        ),
+        htmlToMarkdown(withTargetsHTML, undefined, '#target1,#target3'),
       ).toStrictEqual('# Heading\n\nTarget 2');
     });
+
     it('should exclude targets with inclusion', () => {
       expect(
-        htmlToMarkdown(
-          `<main>
-  <h1>Heading</h1>
-  <div class="parent">
-    <div id="target1">Target 1</div>
-    <div id="target2">Target 2</div>
-    <div id="target3">Target 3</div>
-  </div>
-</main>`,
-          '.parent',
-          '#target1,#target3',
-        ),
+        htmlToMarkdown(withTargetsHTML, '.parent', '#target1,#target3'),
       ).toStrictEqual('Target 2');
     });
+
+    it('should ignore exclude selectors that do not match anything', () => {
+      expect(
+        htmlToMarkdown(
+          withTargetsHTML,
+          '.parent',
+          `$('#invalid-selector').parent(':has(*)')`,
+        ),
+      ).toStrictEqual('Target 1\n\nTarget 2\n\nTarget 3');
+    });
+
+    it('should ignore exclude selectors that do not match anything', () => {
+      expect(
+        htmlToMarkdown(withTargetsHTML, undefined, 'div:has(#target2)'),
+      ).toStrictEqual('# Heading');
+    });
+
     it('should apply scpecial Markdown transformation rules', () => {
       expect(
         htmlToMarkdown(
           `<main>
-  <pre data-language="js">var i = 0</pre>
-</main>`,
+      <pre data-language="js">var i = 0</pre>
+    </main>`,
           undefined,
           undefined,
         ),
@@ -102,13 +113,14 @@ describe('html-to-markdown', () => {
       expect(
         htmlToMarkdown(
           `<main>
-  <pre>var i = 0</pre>
-</main>`,
+      <pre>var i = 0</pre>
+    </main>`,
           undefined,
           undefined,
         ),
       ).toStrictEqual('```\nvar i = 0\n```');
     });
+
     it('should handle empty input', () => {
       expect(htmlToMarkdown('', undefined, undefined)).toEqual('');
     });

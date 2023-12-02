@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 
+// TODO: support non-primitive types. Currently, non-primitive types
+// such as array result in infinite render loops.
 export const useLocalStorage = <T>(
   key: string | null,
   initialValue: T,

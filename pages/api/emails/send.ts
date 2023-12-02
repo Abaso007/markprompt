@@ -113,7 +113,7 @@ export default async function handler(
     const { data } = await productionSupabaseAdmin
       .from('users')
       .select('id,email')
-      .eq('email', process.env.TEST_NEWSLETTER_EMAIL_RECIPIENT)
+      .eq('email', process.env.TEST_NEWSLETTER_EMAIL_RECIPIENT!)
       .limit(1);
     users = data || [];
   } else {
